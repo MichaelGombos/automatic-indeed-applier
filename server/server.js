@@ -3,7 +3,9 @@ const fs = require("fs");
 const fsPromises = require("fs").promises;
 
 const app = express();
+const cors = require("cors");
 
+app.use(cors());
 app.use(express.json());
 
 let posts = [
@@ -179,4 +181,4 @@ const appendToDatabase = () => {
 
 //readDB().then((data) => console.log(data));
 
-overwriteDB();
+//overwriteDB();
