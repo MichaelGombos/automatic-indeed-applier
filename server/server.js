@@ -1,4 +1,7 @@
 const express = require("express");
+const fs = require("fs");
+const fsPromises = require("fs").promises;
+
 const app = express();
 
 app.use(express.json());
@@ -114,3 +117,66 @@ const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+const clearCache = () => {
+  //to clear all saved data in localStorage and send to file
+};
+
+const saveCacheToDrive = () => {
+  // saves current localStorage data to file
+};
+const readDB = async () => {
+  try {
+    const data = await fsPromises.readFile(
+      "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/all-postings.json",
+      "utf8"
+    );
+    return data;
+  } catch (err) {
+    console.error("Error reading file:", err);
+  }
+};
+
+const overwriteDB = () => {
+  // overwrites all content in file
+  readDB().then((data) => {
+    console.log("data", data);
+    console.log("typeof", typeof data, typeof JSON.stringify(posts));
+    console.log(JSON.stringify(JSON.parse(data)) === JSON.stringify(posts));
+    console.log("DataString", data, "postString", JSON.stringify(posts));
+
+    if (JSON.stringify(JSON.parse(data)) === JSON.stringify(posts)) {
+      console.log("Data already exists in DB."); //TODO use .includes in the future for new data
+      return;
+    } else {
+      console.log("Overwrite doesn't match");
+      try {
+        fsPromises
+          .writeFile(
+            "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/all-postings.json",
+            JSON.stringify(posts)
+          )
+          .then(() => console.log("able to overwrite"));
+      } catch (err) {
+        console.error("error overwriting DB", err);
+      }
+      return;
+    }
+  });
+  return;
+};
+
+const appendToDatabase = () => {
+  // adds content to the end of the file
+  fs.appendFile("/path/to/file.txt", "Content to append", (err) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    // Content appended successfully
+  });
+};
+
+//readDB().then((data) => console.log(data));
+
+overwriteDB();
