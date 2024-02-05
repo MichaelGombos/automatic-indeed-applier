@@ -45,10 +45,34 @@ const handleDeletePost = (id) => {
   console.log("attempting to delete post with ID", id);
 
   axios
-    .delete(`http://localhost:3001/api/posts/${id}`)
+    .post(`http://localhost:3001/api/posts/${id}`)
     .then((response) => console.log("successfull deletion", response.data))
     .catch((error) =>
       console.error("DASHBOARD: Error deleting post from server", error)
+    );
+};
+
+const handleClearPosts = () => {
+  console.log("attempting to clear all posts in the db");
+
+  axios
+    .post(`http://localhost:3001/api/commands/clear/`)
+    .then((response) =>
+      console.log("successfull full clear deletion", response.data)
+    )
+    .catch((error) =>
+      console.error("DASHBOARD: Error clearing all data from server", error)
+    );
+};
+
+const handleResetPosts = () => {
+  console.log("attempting to reset db");
+
+  axios
+    .post(`http://localhost:3001/api/commands/reset/`)
+    .then((response) => console.log("successfull reset", response.data))
+    .catch((error) =>
+      console.error("DASHBOARD: Error resetting database", error)
     );
 };
 function App() {
@@ -64,6 +88,8 @@ function App() {
             AppendPostsToDB
           </button>
           <button onClick={() => handleDeletePost(3)}>DeletePost (3)</button>
+          <button onClick={() => handleClearPosts()}>Delete all posts</button>
+          <button onClick={() => handleResetPosts()}>Reset Database</button>
         </div>
         <p>Bot Functions</p>
         <div className="row g-md">
