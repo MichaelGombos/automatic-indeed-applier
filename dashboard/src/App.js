@@ -1,5 +1,6 @@
 import "./App.css";
 import axios from "axios";
+import React, { useState, useEffect } from "react";
 
 let postExample = {
   id: 1,
@@ -75,11 +76,88 @@ const handleResetPosts = () => {
       console.error("DASHBOARD: Error resetting database", error)
     );
 };
+
+const handleToggleListCrawler = (cb) => {
+  console.log("attempting to toggle List crawler");
+
+  axios
+    .post(`http://localhost:3001/api/commands/toggle-list-crawler/`)
+    .then((response) => {
+      cb();
+      console.log("toggled list crawler", response.data);
+    })
+    .catch((error) =>
+      console.error("DASHBOARD: error toggling list crawler", error)
+    );
+};
+
+const handleToggleFormScraper = (cb) => {
+  console.log("attempting to toggle form scraper");
+
+  axios
+    .post(`http://localhost:3001/api/commands/toggle-form-scraper/`)
+    .then((response) => {
+      cb();
+      console.log("toggled form scraper", response.data);
+    })
+    .catch((error) =>
+      console.error("DASHBOARD: error toggling form scraper", error)
+    );
+};
+
 function App() {
+  const [isListCrawlerEnabled, setIsListCrawlerEnabled] = useState(false);
+  const [isFormScraperEnabled, setIsFormScraperEnabled] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [currentPostIndex, setCurrentPostIndex] = useState(0);
+
+  const setScraperStatus = (data) => {
+    setIsListCrawlerEnabled(data.isListCrawlerEnabled);
+    setIsFormScraperEnabled(data.isFormScraperEnabled);
+    setCurrentPage(data.currentPage);
+    setCurrentPostIndex(data.currentPostIndex);
+  };
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    console.log("Starting data poll");
+    const interval = setInterval(() => {
+      fetch("http://localhost:3001/api/scraper/")
+        .then((response) => response.json())
+        .then((data) => {
+          setCount((count) => {
+            //console.log("polling the server", count);
+            return count + 1;
+          });
+          setScraperStatus(data);
+        });
+    }, 5000); // Check every 5 seconds
+
+    // Cleanup functionss
+    return () => {
+      console.log("Clearing interval");
+      clearInterval(interval);
+    };
+  }, []);
   return (
     <div className="App">
       <header className="App-header">
         <h1>Indeed Bot V1:</h1>
+        <h2>Status</h2>
+        <ul>
+          <li>
+            List Crawler : {isListCrawlerEnabled ? "Enabled" : "Disabled"}
+          </li>
+          <li>
+            Form Scraper : {isFormScraperEnabled ? "Enabled" : "Disabled"}
+          </li>
+          <li>
+            Current Location : (PAGE {currentPage} , POST {currentPostIndex})
+          </li>
+          <li>Total posts crawled : </li>
+          <li>Total sucessfull posts : </li>
+          <li>Server long poll count : {count}</li>
+        </ul>
         <p>Test Functions</p>
         <div className="row g-md">
           <button onClick={() => handleGetPost()}>Get Posts</button>
@@ -93,8 +171,24 @@ function App() {
         </div>
         <p>Bot Functions</p>
         <div className="row g-md">
-          <button>Start Web Scraper</button>
-          <button>Stop Web Scraper</button>
+          <button
+            onClick={() =>
+              handleToggleListCrawler(() =>
+                setIsListCrawlerEnabled(!isListCrawlerEnabled)
+              )
+            }
+          >
+            {!isListCrawlerEnabled ? "ENABLE" : "DISABLE"} list crawler
+          </button>
+          <button
+            onClick={() =>
+              handleToggleFormScraper(() =>
+                setIsFormScraperEnabled(!isFormScraperEnabled)
+              )
+            }
+          >
+            {!isFormScraperEnabled ? "ENABLE" : "DISABLE"} form scraper
+          </button>
           <button>Download Master File CSV</button>
           <button>Download Success File CSV</button>
         </div>

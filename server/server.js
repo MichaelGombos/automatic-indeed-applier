@@ -8,6 +8,91 @@ const cors = require("cors");
 app.use(cors());
 app.use(express.json());
 
+const readScraperState = async () => {
+  try {
+    const data = await fsPromises.readFile(
+      `D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json`,
+      "utf8"
+    );
+    return JSON.parse(data);
+  } catch (err) {
+    console.error(`Error reading scraper state file`, err);
+  }
+};
+
+const overwriteScraperState = async (info) => {
+  try {
+    fsPromises
+      .writeFile(
+        "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+        JSON.stringify(info)
+      )
+      .then(() => console.log("able to overwrite scraper state"));
+  } catch (err) {
+    console.error("error overwriting scraper state", err);
+  }
+  return;
+};
+
+const toggleListCrawler = async () => {
+  readScraperState().then((data) => {
+    data.isListCrawlerEnabled = !data.isListCrawlerEnabled;
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+          JSON.stringify(data)
+        )
+        .then(() =>
+          console.log("TOGGLED LIST CRAWLER TO ", data.isListCrawlerEnabled)
+        );
+    } catch (err) {
+      console.error(
+        "error while toggling list crawler: problem saving changes to database",
+        err
+      );
+    }
+    return;
+  });
+};
+
+const toggleFormScraper = async () => {
+  readScraperState().then((data) => {
+    data.isFormScraperEnabled = !data.isFormScraperEnabled;
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+          JSON.stringify(data)
+        )
+        .then(() =>
+          console.log("TOGGLED FORM SCRAPER TO ", data.isFormScraperEnabled)
+        );
+    } catch (err) {
+      console.error("error while toggling list crawler", err);
+    }
+    return;
+  });
+};
+
+const setCrawlerLocation = async (page, postIndex) => {
+  readScraperState.then((data) => {
+    data.currentPage = page;
+    data.currentPostIndex = postIndex;
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+          JSON.stringify(data)
+        )
+        .then(() => console.log("SET CRAWLER LOCATION TO ", page, postIndex));
+    } catch (err) {
+      console.error("ERROR SETTING CRAWLER LOCATION", err);
+    }
+    return;
+  });
+};
+
 const readDB = async (isTestFile) => {
   try {
     const data = await fsPromises.readFile(
@@ -145,6 +230,12 @@ app.get("/", (request, response) => {
   response.send("<h1>Hello World!</h1>");
 });
 
+app.get("/api/scraper", (request, response) => {
+  readScraperState().then((scraperState) => {
+    response.json(scraperState);
+  });
+});
+
 app.get("/api/posts", (request, response) => {
   readDB().then((posts) => {
     response.json(posts);
@@ -217,6 +308,31 @@ app.post("/api/commands/reset", (request, response) => {
   const callback = () => clearDB(callback);
 });
 
+app.post("/api/commands/toggle-list-crawler", (request, response) => {
+  toggleListCrawler()
+    .then(() => {
+      console.log("Attempting to toggle list crawler");
+      response.status(200).end();
+      console.log("did I reach this point?");
+    })
+    .catch((err) => {
+      console.log("error while toggling list crawler", err);
+      response.status(400).end();
+    });
+});
+
+app.post("/api/commands/toggle-form-scraper", (request, response) => {
+  toggleFormScraper()
+    .then(() => {
+      console.log("Attempting to toggle form scraper");
+      response.status(200).end();
+    })
+    .catch((err) => {
+      console.log("error while toggling form scraper");
+      response.status(400).end();
+    });
+});
+
 app.put("/api/posts/:id", (request, response) => {
   const id = Number(request.params.id);
   readDB().then((posts) => {
@@ -234,6 +350,19 @@ app.put("/api/posts/:id", (request, response) => {
       response.status(404).end();
     }
   });
+});
+
+app.put("/api/scraper", (request, response) => {
+  const post = request.body;
+  overwriteScraperState(post)
+    .then(() => {
+      console.log("attempting to overwrite scraper state");
+      response.json(post);
+    })
+    .catch((err) => {
+      console.log("error overwriting scraper state", err);
+      response.status(400).end();
+    });
 });
 
 const PORT = 3001;
