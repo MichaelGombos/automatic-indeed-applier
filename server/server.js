@@ -1,12 +1,49 @@
 const express = require("express");
 const fs = require("fs");
 const fsPromises = require("fs").promises;
+const { Builder, Capabilities, By } = require("selenium-webdriver");
+const chrome = require("selenium-webdriver/chrome");
 
 const app = express();
 const cors = require("cors");
 
 app.use(cors());
 app.use(express.json());
+
+const customProfilePath =
+  "C:/Users/Michael/AppDataLocal/Google/Chrome/User Data/Profile 2";
+const options = new chrome.Options();
+options.addArguments(`--user-data-dir=${customProfilePath}`);
+
+const driver = new Builder()
+  .forBrowser("chrome")
+  .setChromeOptions(options)
+  .build();
+
+// ------------------------------------------------ Selenium ------------------------------------------------ //
+const openIndeed = () => {
+  driver.get("https://indeed.com");
+};
+const simulateRealClick = (selector) => {
+  console.log("driver just went to indeed", customProfilePath);
+  const foundElement = driver.findElement(By.css(selector));
+
+  if (foundElement) {
+    try {
+      foundElement.click().then(() => {
+        console.log("SERVER: clicked element");
+        return;
+      });
+    } catch (err) {
+      CONSOLE;
+      throw err;
+    }
+  } else {
+    throw err;
+  }
+};
+
+// ------------------------------------------------ Scraper Database ------------------------------------------------ //
 
 const readScraperState = async () => {
   try {
@@ -93,6 +130,8 @@ const setCrawlerLocation = async (page, postIndex) => {
   });
 };
 
+// ------------------------------------------------ Posts Database ------------------------------------------------ //
+
 const readDB = async (isTestFile) => {
   try {
     const data = await fsPromises.readFile(
@@ -111,7 +150,6 @@ const readDB = async (isTestFile) => {
 };
 
 const overwriteDB = async (info) => {
-  // overwrites all content in file
   try {
     fsPromises
       .writeFile(
@@ -126,7 +164,6 @@ const overwriteDB = async (info) => {
 };
 
 const addToDB = (dataToConcat, cb) => {
-  // adds content to the end of the file
   readDB().then((data) => {
     const combinedData = data.concat(dataToConcat);
     try {
@@ -171,7 +208,6 @@ const replacePostInDB = (id, postData, cb) => {
         );
       }
     } else {
-      //post using regular app.post request
       console.log("Unable to repalce post in database: can't find post index");
     }
     if (cb) {
@@ -200,7 +236,6 @@ const deleteFromDB = (id, cb) => {
         console.error("error deleting from database", err);
       }
     } else {
-      //post using regular app.post request
       console.log("Unable to delete file from database");
     }
   });
@@ -225,6 +260,8 @@ const clearDB = (cb) => {
     cb();
   }
 };
+
+// ------------------------------------------------ Routes ------------------------------------------------ //
 
 app.get("/", (request, response) => {
   response.send("<h1>Hello World!</h1>");
@@ -333,6 +370,17 @@ app.post("/api/commands/toggle-form-scraper", (request, response) => {
     });
 });
 
+app.post("/api/commands/click", (request, response) => {
+  const selector = request.body.selector;
+  try {
+    simulateRealClick(selector);
+    response.status(200).end();
+  } catch (error) {
+    console.log("Error clicking button");
+    response.status(400).end();
+  }
+});
+
 app.put("/api/posts/:id", (request, response) => {
   const id = Number(request.params.id);
   readDB().then((posts) => {
@@ -345,7 +393,6 @@ app.put("/api/posts/:id", (request, response) => {
       const callback = () => response.json(post);
       replacePostInDB(id, posts, callback);
     } else {
-      //post using regular app.post request
       console.log("failed PUT: post not found");
       response.status(404).end();
     }
@@ -370,3 +417,4 @@ const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+openIndeed();
