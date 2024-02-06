@@ -354,6 +354,7 @@ app.put("/api/posts/:id", (request, response) => {
 
 app.put("/api/scraper", (request, response) => {
   const post = request.body;
+  console.log("This is the request I got", request.body, request.data);
   overwriteScraperState(post)
     .then(() => {
       console.log("attempting to overwrite scraper state");
