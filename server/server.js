@@ -372,6 +372,7 @@ app.post("/api/commands/toggle-form-scraper", (request, response) => {
 
 app.post("/api/commands/click", (request, response) => {
   const selector = request.body.selector;
+  console.log("Just Tried to click inside the server");
   try {
     simulateRealClick(selector);
     response.status(200).end();

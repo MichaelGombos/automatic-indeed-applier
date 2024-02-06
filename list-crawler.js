@@ -21,6 +21,7 @@ let mode = "setup";
 
 let currentPageListNodes = [];
 let currentPageListEasyNodes = [];
+let currentPageListEasyNodeIndexes = [];
 let pagePostCount = 0;
 let easyNodeIndex = 0;
 
@@ -37,6 +38,7 @@ let postPlaceholder = {
   successful: false,
 };
 
+// ------------------------------------------------API CALLS------------------------------------------------//
 const getScraperState = () => {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
@@ -96,6 +98,33 @@ const sendPlaceholderData = () => {
       console.log("error retriving placeholder state", err);
     });
 };
+
+const sendClick = (selector) => {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", // Ensure this line is added
+      },
+      url: "http://localhost:3001/api/commands/click",
+      data: JSON.stringify({ selector: selector }),
+      onload: function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          console.log("we getting a response?", response);
+          resolve();
+        } else {
+          reject(
+            new Error("Click Request failed with status " + response.status)
+          );
+        }
+      },
+      onerror: function (error) {
+        reject(new Error("Network error occurred"));
+      },
+    });
+  });
+};
+// ---------------------------------------------FAKE USER ACTIONS--------------------------------------------//
 
 function waitForElement(selector, intervalTime = 100, timeout = 30000) {
   return new Promise((resolve, reject) => {
@@ -218,7 +247,12 @@ function simulateClick(element) {
     console.log("Simulated Click", String(element));
   }
 }
+
+const simulateRealClick = (selector) => {};
 unsafeWindow.simulateClick = simulateClick;
+
+// ------------------------------------------------MODES------------------------------------------------//
+
 const setup = () => {
   console.log("STARTING SETUP");
   //read search term, read search location, read search keywords
@@ -242,6 +276,7 @@ const readList = () => {
   isListCrawlerBusy = true;
   currentPageListNodes = document.querySelectorAll(".slider_item");
   let arraySliders = Array.from(currentPageListNodes);
+  let postsOnPage = Array.from(document.querySelectorAll(".slider_item"));
 
   currentPageListEasyNodes = arraySliders.filter((slider) => {
     try {
@@ -254,7 +289,26 @@ const readList = () => {
       return false;
     }
   });
-  pagePostCount = currentPageListEasyNodes.length;
+
+  currentPageListEasyNodeIndexes = postsOnPage.reduce(
+    (accumulator, slider, index) => {
+      try {
+        if (
+          slider.children[0].children[1].children[0].children[0].children[0] !==
+          undefined
+        ) {
+          accumulator.push(index);
+        }
+      } catch {
+        //error with undefined child element
+      }
+      return accumulator;
+    },
+    []
+  ); // Initialize accumulator as an empty array
+  console.log("-------------- NODE INDEXES", currentPageListEasyNodeIndexes);
+
+  pagePostCount = currentPageListEasyNodeIndexes.length;
   mode = "iterate";
   console.log("COMPLETING PAGE READ");
   iterateList();
@@ -279,8 +333,15 @@ const iterateList = () => {
       return;
     } else {
       try {
-        simulateWeakClick(
-          currentPageListEasyNodes[easyNodeIndex].querySelector("a")
+        console.log(
+          "the valid node list for this page is",
+          currentPageListEasyNodeIndexes
+        );
+        console.log("we are currently working on", easyNodeIndex);
+        sendClick(
+          `#mosaic-provider-jobcards > ul > li:nth-child(${
+            currentPageListEasyNodeIndexes[easyNodeIndex] + 1
+          })`
         );
       } catch (error) {
         console.log("Error with click simulation, continuing iteration");
@@ -331,9 +392,8 @@ const iterateList = () => {
                 // unsafeWindow.simulateEnter(
                 //   document.querySelector("#indeedApplyButton")
                 // );
-                unsafeWindow.simulateClick(
-                  document.querySelector("#indeedApplyButton")
-                );
+
+                sendClick("#indeedApplyButton");
                 console.log("After clicking apply");
               } catch (error) {
                 console.log("Error Clicking Apply", error); //if I use weak click for some reason I am getting no error
@@ -359,8 +419,11 @@ const nextPage = () => {
   //set mode to readList
   //click the element aria-label="Next Page"
 };
-console.log("------------------LIST CRAWLER MOUNTED------------------");
+
+// ------------------------------------------------MAIN LOOP------------------------------------------------//
+
 const onSearchPage = window.location.href.includes("/jobs");
+console.log("------------------LIST CRAWLER MOUNTED------------------");
 console.log("Testing crawler script on searchPage?", onSearchPage);
 
 if (onSearchPage) {
