@@ -124,6 +124,30 @@ const sendClick = (selector) => {
     });
   });
 };
+
+const switchTab = () => {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", // Ensure this line is added
+      },
+      url: "http://localhost:3001/api/commands/switch-tabs",
+      data: JSON.stringify({ data: "Successfull tab switch" }),
+      onload: function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          console.log("resolving", response);
+          resolve();
+        } else {
+          reject(new Error("tab switch failed with status " + response.status));
+        }
+      },
+      onerror: function (error) {
+        reject(new Error(`Network error occurred: ${error.message}`));
+      },
+    });
+  });
+};
 // ---------------------------------------------FAKE USER ACTIONS--------------------------------------------//
 
 function waitForElement(selector, intervalTime = 100, timeout = 30000) {
@@ -387,18 +411,22 @@ const iterateList = () => {
               isFormScraperEnabled = true;
               console.log("clicking Apply button");
 
-              try {
-                console.log("before click apply");
-                // unsafeWindow.simulateEnter(
-                //   document.querySelector("#indeedApplyButton")
-                // );
-
-                sendClick("#indeedApplyButton");
-                console.log("After clicking apply");
-              } catch (error) {
-                console.log("Error Clicking Apply", error); //if I use weak click for some reason I am getting no error
-              }
-              console.log("out of try/catch");
+              sendClick("#indeedApplyButton")
+                .then(() => {
+                  switchTab()
+                    .then(() => {
+                      console.log("clicked appply and switched tabs");
+                    })
+                    .catch((err) => {
+                      console.log(
+                        "Error switching tabs after clicking apply",
+                        err
+                      );
+                    });
+                })
+                .catch((err) => {
+                  console.log("error clicking apply button", err);
+                });
             });
 
             easyNodeIndex++;

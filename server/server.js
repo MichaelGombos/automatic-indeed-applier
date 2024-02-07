@@ -1,11 +1,11 @@
 const express = require("express");
 const fs = require("fs");
 const fsPromises = require("fs").promises;
-const { Builder, Capabilities, By } = require("selenium-webdriver");
+const { Builder, Capabilities, By, until } = require("selenium-webdriver");
 const chrome = require("selenium-webdriver/chrome");
 
-const app = express();
 const cors = require("cors");
+const app = express();
 
 app.use(cors());
 app.use(express.json());
@@ -24,8 +24,44 @@ const driver = new Builder()
 const openIndeed = () => {
   driver.get("https://indeed.com");
 };
+let originalWindow;
+const switchTabFocus = async () => {
+  //Store the ID of the original window
+  originalWindow = await driver.getWindowHandle();
+  //Loop through until we find a new window handle
+  const windows = await driver.getAllWindowHandles();
+  windows.forEach(async (handle) => {
+    if (handle !== originalWindow) {
+      await driver.switchTo().window(handle);
+    }
+  });
+};
+
+const switchToScraperTab = async () => {
+  originalWindow = await driver.getWindowHandle();
+  const handles = await driver.getAllWindowHandles();
+  for (let handle of handles) {
+    await driver.switchTo().window(handle);
+    const currentUrl = await driver.getCurrentUrl();
+    if (currentUrl.includes("smartapply.indeed.com")) {
+      console.log("Switched to the tab with URL: smartapply.indeed.com");
+      return true;
+    }
+  }
+  console.log('scraper tab "smartapply.indeed.com" not found.');
+  return false;
+};
+
+const closeScraperTab = async () => {
+  //Close the tab or window
+
+  await driver.close();
+
+  //Switch back to the old tab or window
+  await driver.switchTo().window(originalWindow);
+};
+
 const simulateRealClick = (selector) => {
-  console.log("driver just went to indeed", customProfilePath);
   const foundElement = driver.findElement(By.css(selector));
 
   if (foundElement) {
@@ -372,7 +408,7 @@ app.post("/api/commands/toggle-form-scraper", (request, response) => {
 
 app.post("/api/commands/click", (request, response) => {
   const selector = request.body.selector;
-  console.log("Just Tried to click inside the server");
+  console.log("Trying to click inside the server", selector);
   try {
     simulateRealClick(selector);
     response.status(200).end();
@@ -380,6 +416,30 @@ app.post("/api/commands/click", (request, response) => {
     console.log("Error clicking button");
     response.status(400).end();
   }
+});
+
+app.post("/api/commands/switch-tabs", (request, response) => {
+  console.log("Trying to switch browser tabs");
+  switchToScraperTab()
+    .then(() => {
+      response.status(200).end();
+    })
+    .catch((err) => {
+      console.log("Error switching tabs", err);
+      response.status(400).end();
+    });
+});
+
+app.post("/api/commands/close-tab", (request, response) => {
+  console.log("Trying to switch browser tabs");
+  closeScraperTab()
+    .then(() => {
+      response.status(200).end();
+    })
+    .catch((err) => {
+      console.log("Error closing tab", err);
+      response.status(400).end();
+    });
 });
 
 app.put("/api/posts/:id", (request, response) => {
@@ -402,7 +462,6 @@ app.put("/api/posts/:id", (request, response) => {
 
 app.put("/api/scraper", (request, response) => {
   const post = request.body;
-  console.log("This is the request I got", request.body, request.data);
   overwriteScraperState(post)
     .then(() => {
       console.log("attempting to overwrite scraper state");
