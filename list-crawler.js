@@ -107,7 +107,7 @@ const sendClick = async (selector) => {
     GM_xmlhttpRequest({
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Ensure this line is added
+        "Content-Type": "application/json",
       },
       url: "http://localhost:3001/api/commands/click",
       data: JSON.stringify({ selector: selector }),
@@ -122,7 +122,33 @@ const sendClick = async (selector) => {
         }
       },
       onerror: function (error) {
-        reject(new Error("Network error occurred"));
+        reject(new Error("Network error occurred", error));
+      },
+    });
+  });
+};
+
+const sendOpen = async (url) => {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      url: "http://localhost:3001/api/commands/open-link",
+      data: JSON.stringify({ link: url }),
+      onload: function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          console.log("we getting a response?", response);
+          wait(1000).then(resolve());
+        } else {
+          reject(
+            new Error("Open Link Request failed with status " + response.status)
+          );
+        }
+      },
+      onerror: function (error) {
+        reject(new Error("Network error occurred", error));
       },
     });
   });
@@ -140,7 +166,7 @@ const switchTab = () => {
       onload: function (response) {
         if (response.status >= 200 && response.status < 300) {
           console.log("resolving", response);
-          resolve();
+          wait(1000).then(resolve());
         } else {
           reject(new Error("tab switch failed with status " + response.status));
         }
@@ -337,10 +363,10 @@ const readList = () => {
   currentPageListEasyNodeIndexes = postsOnPage.reduce(
     (accumulator, slider, index) => {
       try {
-        if (
-          slider.children[0].children[1].children[0].children[0].children[0] !==
-          undefined
-        ) {
+        const easyApplyTag =
+          slider.children[0].children[1].children[0].children[0].children[0]
+            .children[1].innerText == "Easily apply";
+        if (easyApplyTag) {
           accumulator.push(index);
         }
       } catch {
@@ -384,82 +410,97 @@ const iterateList = async () => {
           currentPageListEasyNodeIndexes
         );
         console.log("we are currently working on", easyNodeIndex);
-        sendClick(
+        const jobCardElement = document.querySelector(
           `#mosaic-provider-jobcards > ul > li:nth-child(${
             currentPageListEasyNodeIndexes[easyNodeIndex] + 1
           })`
-        ).then(() => {
-          console.log("I JUST CLICKED IT AND I'M FINE!");
-          waitForElement("#indeedApplyButton")
-            .then((element) => {
-              const date = new Date();
-              const postLink = window.location.href;
-              const position = document
-                .querySelector(".jobsearch-JobInfoHeader-title")
-                .innerText.split("\n")[0];
-              const employer = document.querySelector(
-                'div[data-company-name="true"]'
-              ).innerText;
-              const address = document
-                .querySelector(
-                  'div[data-testid="inlineHeader-companyLocation"] div'
-                )
-                .innerText.split("•")[0];
-              const wage = document.querySelector("#salaryInfoAndJobType")
-                .children[0].innerText;
+        );
+        const applySelector = `#mosaic-provider-jobcards > ul > li:nth-child(${
+          currentPageListEasyNodeIndexes[easyNodeIndex] + 1
+        }) a`;
+        const applyLink = document.querySelector(applySelector).href;
 
-              const fulltime =
-                document.querySelector("#salaryInfoAndJobType").children
-                  .length > 1
-                  ? document
-                      .querySelector("#salaryInfoAndJobType")
-                      .children[1].innerText.split("- ")[1] == "Full-time"
-                  : document.querySelector("#salaryInfoAndJobType").children[0]
-                      .innerText == "Full-time";
+        console.log("This is the link for the current posting", applyLink);
 
-              postPlaceholder.date = date;
-              postPlaceholder.link = postLink;
-              postPlaceholder.position = position;
-              postPlaceholder.employer = employer;
-              postPlaceholder.address = address;
-              postPlaceholder.wage = wage;
-              postPlaceholder.fulltime = fulltime;
+        console.log("I JUST CLICKED IT AND I'M FINE!");
+        waitForElement(applySelector)
+          .then(() => {
+            const date = new Date();
+            const postLink = window.location.href;
+            console.log("jobCardElement", jobCardElement);
+            console.log("jobCardElement type", typeof jobCardElement);
+            console.log(
+              "jobCardElement employer",
+              jobCardElement.querySelector('span[data-testid="company-name"]')
+            );
 
-              sendPlaceholderData().then(() => {
-                console.log("clicking Apply button");
+            console.log(
+              "jobCardElement employer",
+              jobCardElement.querySelector('div[data-testid="text-location"]')
+            );
+            const position =
+              jobCardElement.querySelector(".jobTitle").innerText;
+            const employer = jobCardElement.querySelector(
+              'span[data-testid="company-name"]'
+            ).innerText;
+            const address = jobCardElement.querySelector(
+              'div[data-testid="text-location"]'
+            ).innerText;
+            const wage = jobCardElement.querySelector(
+              ".salary-snippet-container"
+            )
+              ? jobCardElement.querySelector(".salary-snippet-container")
+                  .children[0].innerText
+              : "unavailible";
 
-                sendClick("#indeedApplyButton")
-                  .then(() => {
-                    switchTab()
-                      .then(() => {
-                        console.log("clicked appply and switched tabs");
-                        isScraperBusy = true;
-                        isListCrawlerBusy = false;
+            const fulltime = jobCardElement.querySelector(".jobMetaDataGroup ")
+              ? jobCardElement
+                  .querySelector(".jobMetaDataGroup ")
+                  .innerText.includes("Fill-time")
+              : "unavailible";
 
-                        console.log("current index on apply", easyNodeIndex);
-                        easyNodeIndex++;
-                        console.log(
-                          "easy node index increased to",
-                          easyNodeIndex
-                        );
-                      })
-                      .catch((err) => {
-                        console.log(
-                          "Error switching tabs after clicking apply",
-                          err
-                        );
-                      });
-                  })
-                  .catch((err) => {
-                    console.log("error clicking apply button", err);
-                  });
-              });
-              console.log("result from postPlaceholder", postPlaceholder);
-            })
-            .catch((err) => {
-              console.log("ran into an error while waiting for element", err);
+            postPlaceholder.date = date;
+            postPlaceholder.link = postLink;
+            postPlaceholder.position = position;
+            postPlaceholder.employer = employer;
+            postPlaceholder.address = address;
+            postPlaceholder.wage = wage;
+            postPlaceholder.fulltime = fulltime;
+
+            sendPlaceholderData().then(() => {
+              console.log("opening job link");
+
+              sendOpen(applyLink)
+                .then(() => {
+                  switchTab()
+                    .then(() => {
+                      console.log("opened job link and switched tabs");
+                      isScraperBusy = true;
+                      isListCrawlerBusy = false;
+
+                      console.log("current index on apply", easyNodeIndex);
+                      easyNodeIndex++;
+                      console.log(
+                        "easy node index increased to",
+                        easyNodeIndex
+                      );
+                    })
+                    .catch((err) => {
+                      console.log(
+                        "Error switching tabs after opening tab",
+                        err
+                      );
+                    });
+                })
+                .catch((err) => {
+                  console.log("error opening tab", err);
+                });
             });
-        });
+            console.log("result from postPlaceholder", postPlaceholder);
+          })
+          .catch((err) => {
+            console.log("ran into an error while waiting for element", err);
+          });
       } catch (error) {
         console.log("Error with click simulation, continuing iteration", error);
       }
@@ -477,11 +518,7 @@ const nextPage = () => {
 
 // ------------------------------------------------MAIN LOOP------------------------------------------------//
 
-const onSearchPage = window.location.href.includes("/jobs");
-
 const pollScraperState = async () => {
-  if (!onSearchPage) return;
-
   while (onSearchPage) {
     if (isListCrawlerBusy) {
       console.log("List crawler is busy, skipping iteration.");
@@ -518,11 +555,30 @@ const pollScraperState = async () => {
     }
 
     // Wait for 4 seconds before the next iteration
-    await new Promise((resolve) => setTimeout(resolve, 4000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 };
 
-console.log("------------------LIST CRAWLER MOUNTED------------------");
-console.log("Testing crawler script on searchPage?", onSearchPage);
+const launchFormScraper = () => {
+  wait(1000).then(() => {
+    waitForElement("#indeedApplyButton").then(() => {
+      sendClick("#indeedApplyButton");
+    });
+  });
+};
 
-pollScraperState();
+const onSearchPage = window.location.href.includes("/jobs");
+const onViewPage = window.location.href.includes("/viewjob");
+console.log("------------------LIST CRAWLER MOUNTED------------------");
+console.log(
+  "RUNNING ON VIEW JOB PAGE:",
+  onViewPage,
+  "RUNNING ON SEARCH PAGE?",
+  onSearchPage
+);
+
+if (onSearchPage) {
+  pollScraperState();
+} else if (onViewPage) {
+  launchFormScraper();
+}

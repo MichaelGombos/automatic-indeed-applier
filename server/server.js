@@ -43,13 +43,13 @@ const switchToScraperTab = async () => {
   for (let handle of handles) {
     await driver.switchTo().window(handle);
     const currentUrl = await driver.getCurrentUrl();
-    if (currentUrl.includes("smartapply.indeed.com")) {
-      console.log("Switched to the tab with URL: smartapply.indeed.com");
+    if (currentUrl.includes("www.indeed.com/viewjob")) {
+      console.log("Switched to the tab with URL: www.indeed.com/viewjob");
       await enableFormScraper();
       return true;
     }
   }
-  console.log('scraper tab "smartapply.indeed.com" not found.');
+  console.log('scraper tab "www.indeed.com/viewjob" not found.');
   return false;
 };
 
@@ -65,12 +65,17 @@ const closeScraperTab = async () => {
 
 const simulateRealClick = async (selector) => {
   console.log("simulating a real click");
+  //this time should be random in the future.
+  await new Promise((resolve) => setTimeout(resolve, 1000));
   try {
     const foundElement = await driver.findElement(By.css(selector));
     if (foundElement) {
       console.log("element found");
+      let rn = new Date();
+      let time = `${rn.getHours()}:${rn.getMinutes()}:${rn.getSeconds()}:${rn.getMilliseconds()}`;
+
       await foundElement.click();
-      console.log("SERVER: clicked element", selector);
+      console.log("SERVER: clicked element", selector, time);
     } else {
       console.log("no element found");
     }
@@ -461,6 +466,21 @@ app.post("/api/commands/click", (request, response) => {
     })
     .catch((error) => {
       console.log("Error clicking button", error);
+      response.status(400).end();
+    });
+});
+
+app.post("/api/commands/open-link", (request, response) => {
+  const url = request.body.link;
+  console.log("Trying to open link inside the server", url);
+
+  driver
+    .executeScript("window.open(arguments[0]);", url)
+    .then(() => {
+      response.status(200).end();
+    })
+    .catch((error) => {
+      console.log("Error clicking link", error);
       response.status(400).end();
     });
 });

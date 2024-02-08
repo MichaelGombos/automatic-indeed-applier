@@ -24,6 +24,10 @@ const continueButtonSelector = ".ia-BasePage-footer div button";
 const resumeButtonSelector = "#resume-display-buttonHeader";
 const defaultBuffer = 500; //ms
 
+const wait = async (ms) => {
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+};
+
 const getScraperState = () => {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
@@ -43,14 +47,14 @@ const getScraperState = () => {
   });
 };
 
-const setScraperState = (data) => {
+const sendApplicationToDatabase = (data) => {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
-      method: "PUT",
+      method: "POST",
       headers: {
-        "Content-Type": "application/json", // Ensure this line is added
+        "Content-Type": "application/json",
       },
-      url: "http://localhost:3001/api/scraper",
+      url: "http://localhost:3001/api/posts",
       data: JSON.stringify(data),
       onload: function (response) {
         if (response.status >= 200 && response.status < 300) {
@@ -66,31 +70,29 @@ const setScraperState = (data) => {
   });
 };
 
-const sendClick = (selector) => {
+const sendClick = async (selector) => {
   return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      GM_xmlhttpRequest({
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json", // Ensure this line is added
-        },
-        url: "http://localhost:3001/api/commands/click",
-        data: JSON.stringify({ selector: selector }),
-        onload: function (response) {
-          if (response.status >= 200 && response.status < 300) {
-            console.log("we getting a response?", response);
-            resolve();
-          } else {
-            reject(
-              new Error("Click Request failed with status " + response.status)
-            );
-          }
-        },
-        onerror: function (error) {
-          reject(new Error("Network error occurred", error));
-        },
-      });
-    }, 1000); //1 sec
+    GM_xmlhttpRequest({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      url: "http://localhost:3001/api/commands/click",
+      data: JSON.stringify({ selector: selector }),
+      onload: function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          console.log("we getting a response?", response);
+          wait(1000).then(resolve());
+        } else {
+          reject(
+            new Error("Click Request failed with status " + response.status)
+          );
+        }
+      },
+      onerror: function (error) {
+        reject(new Error("Network error occurred", error));
+      },
+    });
   });
 };
 
@@ -99,7 +101,7 @@ const switchTab = () => {
     GM_xmlhttpRequest({
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Ensure this line is added
+        "Content-Type": "application/json",
       },
       url: "http://localhost:3001/api/commands/switch-tabs",
       data: JSON.stringify({ data: "Successfull tab switch" }),
@@ -123,7 +125,7 @@ const closeTab = () => {
     GM_xmlhttpRequest({
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // Ensure this line is added
+        "Content-Type": "application/json",
       },
       url: "http://localhost:3001/api/commands/close-tab",
       data: JSON.stringify({ data: "Successfully closed the tab" }),
@@ -177,15 +179,13 @@ const waitForElement = (selector, intervalTime = 100, timeout = 30000) => {
 
 const waitForLocationChange = (currentLocation) => {
   return new Promise((resolve) => {
-    // This function checks if the location has changed
     const checkLocationChange = () => {
       if (unsafeWindow.location.href !== currentLocation) {
         console.log("detected location change");
         resolve();
       } else {
-        // Check again after a delay
         console.log("checking for location change again");
-        setTimeout(checkLocationChange, 100); // Check every 100 milliseconds
+        setTimeout(checkLocationChange, 100);
       }
     };
 
@@ -197,20 +197,23 @@ const readForm = () => {};
 
 const selectResume = async () => {
   console.log("waiting for resume to load");
-  await waitForElement(resumeButtonSelector)
-    .then(() => {
-      console.log("clicking resume");
-      sendClick(resumeButtonSelector)
-        .then(() => {
-          nextForm();
-        })
-        .catch((err) => {
-          console.log("error selecting resume", err);
-        });
-    })
-    .catch((err) => {
-      console.log("error while waiting for element ", err);
-    });
+  await wait(1000).then(() => {
+    waitForElement(resumeButtonSelector)
+      .then(() => {
+        console.log("clicking resume");
+
+        sendClick(resumeButtonSelector)
+          .then(() => {
+            nextForm();
+          })
+          .catch((err) => {
+            console.log("error selecting resume", err);
+          });
+      })
+      .catch((err) => {
+        console.log("error while waiting for element ", err);
+      });
+  });
 };
 
 const nextForm = async () => {
@@ -223,10 +226,10 @@ const nextForm = async () => {
 }; //should call "step" at the end.
 
 const sendPostData = async () => {
-  getScraperState()
+  await getScraperState()
     .then((scraperState) => {
       scraperState.successful = isValid;
-      setScraperState(scraperState)
+      sendApplicationToDatabase(scraperState)
         .then(() => {
           console.log(
             "successfully send application to server isValid:",
