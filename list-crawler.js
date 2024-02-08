@@ -99,7 +99,10 @@ const sendPlaceholderData = () => {
     });
 };
 
-const sendClick = (selector) => {
+const wait = async (ms) => {
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+};
+const sendClick = async (selector) => {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
       method: "POST",
@@ -111,7 +114,7 @@ const sendClick = (selector) => {
       onload: function (response) {
         if (response.status >= 200 && response.status < 300) {
           console.log("we getting a response?", response);
-          resolve();
+          wait(1000).then(resolve());
         } else {
           reject(
             new Error("Click Request failed with status " + response.status)
@@ -155,8 +158,9 @@ function waitForElement(selector, intervalTime = 100, timeout = 30000) {
     const startTime = Date.now(); // Record the start time for the timeout check
     const interval = setInterval(() => {
       const element = document.querySelector(selector);
-
+      console.log("looking for element", selector);
       if (element) {
+        console.log("found element");
         clearInterval(interval);
         resolve(element);
       } else if (Date.now() - startTime > timeout) {
@@ -275,6 +279,22 @@ function simulateClick(element) {
 const simulateRealClick = (selector) => {};
 unsafeWindow.simulateClick = simulateClick;
 
+const removeNonDesktopElements = () => {
+  // Select all elements with the class name 'nonJobContent-desktop'
+  const elements = document.querySelectorAll(".nonJobContent-desktop");
+
+  // Loop through the selected elements
+  elements.forEach((element) => {
+    // Get the parent element
+    const parent = element.parentElement;
+
+    // Remove the parent element from the DOM, which also removes the child
+    if (parent) {
+      parent.remove();
+    }
+  });
+};
+
 // ------------------------------------------------MODES------------------------------------------------//
 
 const setup = () => {
@@ -334,10 +354,12 @@ const readList = () => {
 
   pagePostCount = currentPageListEasyNodeIndexes.length;
   mode = "iterate";
+
   console.log("COMPLETING PAGE READ");
+  removeNonDesktopElements();
   iterateList();
 };
-const iterateList = () => {
+const iterateList = async () => {
   console.log("STARTING PAGE ITERATION");
   //For each node in the list
   //check if the FormScraper is busy
@@ -366,82 +388,87 @@ const iterateList = () => {
           `#mosaic-provider-jobcards > ul > li:nth-child(${
             currentPageListEasyNodeIndexes[easyNodeIndex] + 1
           })`
-        );
-      } catch (error) {
-        console.log("Error with click simulation, continuing iteration");
-      }
-      console.log("I JUST CLICKED IT AND I'M FINE!");
-      setTimeout(() => {
-        waitForElement("#indeedApplyButton")
-          .then((element) => {
-            easyNodeIndex++;
-            const date = new Date();
-            const postLink = window.location.href;
-            const position = document
-              .querySelector(".jobsearch-JobInfoHeader-title")
-              .innerText.split("\n")[0];
-            const employer = document.querySelector(
-              'div[data-company-name="true"]'
-            ).innerText;
-            const address = document
-              .querySelector(
-                'div[data-testid="inlineHeader-companyLocation"] div'
-              )
-              .innerText.split("•")[0];
-            const wage = document.querySelector("#salaryInfoAndJobType")
-              .children[0].innerText;
+        ).then(() => {
+          console.log("I JUST CLICKED IT AND I'M FINE!");
+          waitForElement("#indeedApplyButton")
+            .then((element) => {
+              const date = new Date();
+              const postLink = window.location.href;
+              const position = document
+                .querySelector(".jobsearch-JobInfoHeader-title")
+                .innerText.split("\n")[0];
+              const employer = document.querySelector(
+                'div[data-company-name="true"]'
+              ).innerText;
+              const address = document
+                .querySelector(
+                  'div[data-testid="inlineHeader-companyLocation"] div'
+                )
+                .innerText.split("•")[0];
+              const wage = document.querySelector("#salaryInfoAndJobType")
+                .children[0].innerText;
 
-            const fulltime =
-              document.querySelector("#salaryInfoAndJobType").children.length >
-              1
-                ? document
-                    .querySelector("#salaryInfoAndJobType")
-                    .children[1].innerText.split("- ")[1] == "Full-time"
-                : document.querySelector("#salaryInfoAndJobType").children[0]
-                    .innerText == "Full-time";
+              const fulltime =
+                document.querySelector("#salaryInfoAndJobType").children
+                  .length > 1
+                  ? document
+                      .querySelector("#salaryInfoAndJobType")
+                      .children[1].innerText.split("- ")[1] == "Full-time"
+                  : document.querySelector("#salaryInfoAndJobType").children[0]
+                      .innerText == "Full-time";
 
-            postPlaceholder.date = date;
-            postPlaceholder.link = postLink;
-            postPlaceholder.position = position;
-            postPlaceholder.employer = employer;
-            postPlaceholder.address = address;
-            postPlaceholder.wage = wage;
-            postPlaceholder.fulltime = fulltime;
-            sendPlaceholderData().then(() => {
-              isFormScraperEnabled = true;
-              console.log("clicking Apply button");
+              postPlaceholder.date = date;
+              postPlaceholder.link = postLink;
+              postPlaceholder.position = position;
+              postPlaceholder.employer = employer;
+              postPlaceholder.address = address;
+              postPlaceholder.wage = wage;
+              postPlaceholder.fulltime = fulltime;
 
-              sendClick("#indeedApplyButton")
-                .then(() => {
-                  switchTab()
-                    .then(() => {
-                      console.log("clicked appply and switched tabs");
-                    })
-                    .catch((err) => {
-                      console.log(
-                        "Error switching tabs after clicking apply",
-                        err
-                      );
-                    });
-                })
-                .catch((err) => {
-                  console.log("error clicking apply button", err);
-                });
+              sendPlaceholderData().then(() => {
+                console.log("clicking Apply button");
+
+                sendClick("#indeedApplyButton")
+                  .then(() => {
+                    switchTab()
+                      .then(() => {
+                        console.log("clicked appply and switched tabs");
+                        isScraperBusy = true;
+                        isListCrawlerBusy = false;
+
+                        console.log("current index on apply", easyNodeIndex);
+                        easyNodeIndex++;
+                        console.log(
+                          "easy node index increased to",
+                          easyNodeIndex
+                        );
+                      })
+                      .catch((err) => {
+                        console.log(
+                          "Error switching tabs after clicking apply",
+                          err
+                        );
+                      });
+                  })
+                  .catch((err) => {
+                    console.log("error clicking apply button", err);
+                  });
+              });
+              console.log("result from postPlaceholder", postPlaceholder);
+            })
+            .catch((err) => {
+              console.log("ran into an error while waiting for element", err);
             });
-
-            easyNodeIndex++;
-            console.log("result from postPlaceholder", postPlaceholder);
-          })
-          .catch((err) => {
-            console.log("ran into an error while waiting for element", err);
-          });
-      }, 300); //extra 300ms delay to avoid targeting previous post
+        });
+      } catch (error) {
+        console.log("Error with click simulation, continuing iteration", error);
+      }
     }
   }
 };
 
 const nextPage = () => {
-  console.log("STARTING NEXT PAGE");
+  // console.log("STARTING NEXT PAGE");
   //take note of current location,
   //+1 to current location
   //set mode to readList
@@ -451,19 +478,16 @@ const nextPage = () => {
 // ------------------------------------------------MAIN LOOP------------------------------------------------//
 
 const onSearchPage = window.location.href.includes("/jobs");
-console.log("------------------LIST CRAWLER MOUNTED------------------");
-console.log("Testing crawler script on searchPage?", onSearchPage);
 
-if (onSearchPage) {
-  setInterval(() => {
-    //console.log("polling test");
+const pollScraperState = async () => {
+  if (!onSearchPage) return;
 
+  while (onSearchPage) {
     if (isListCrawlerBusy) {
-      //console.log("list crawler is busy, canceling poll");
-      return;
+      console.log("List crawler is busy, skipping iteration.");
     } else {
-      getScraperState().then((scraperState) => {
-        console.log("poll complete", scraperState);
+      try {
+        const scraperState = await getScraperState();
         isScraperBusy = scraperState.isFormScraperEnabled;
 
         switch (mode) {
@@ -475,17 +499,30 @@ if (onSearchPage) {
             break;
           case "iterate":
             if (isScraperBusy) {
-              console.log("Unable to iterate: Scraper is busy");
-              break;
+              console.log(
+                "Unable to iterate: Scraper is busy",
+                isScraperBusy,
+                scraperState
+              );
             } else {
-              iterateList();
-              break;
+              await iterateList();
             }
+            break;
           case "next":
             nextPage();
             break;
         }
-      });
+      } catch (error) {
+        console.error("Error during scraper state polling:", error);
+      }
     }
-  }, 5000);
-}
+
+    // Wait for 4 seconds before the next iteration
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+  }
+};
+
+console.log("------------------LIST CRAWLER MOUNTED------------------");
+console.log("Testing crawler script on searchPage?", onSearchPage);
+
+pollScraperState();

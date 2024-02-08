@@ -45,6 +45,7 @@ const switchToScraperTab = async () => {
     const currentUrl = await driver.getCurrentUrl();
     if (currentUrl.includes("smartapply.indeed.com")) {
       console.log("Switched to the tab with URL: smartapply.indeed.com");
+      await enableFormScraper();
       return true;
     }
   }
@@ -54,27 +55,27 @@ const switchToScraperTab = async () => {
 
 const closeScraperTab = async () => {
   //Close the tab or window
-
+  console.log("before driver close");
   await driver.close();
-
+  console.log("after driver close");
   //Switch back to the old tab or window
   await driver.switchTo().window(originalWindow);
+  await disableFormScraper();
 };
 
-const simulateRealClick = (selector) => {
-  const foundElement = driver.findElement(By.css(selector));
-
-  if (foundElement) {
-    try {
-      foundElement.click().then(() => {
-        console.log("SERVER: clicked element");
-        return;
-      });
-    } catch (err) {
-      CONSOLE;
-      throw err;
+const simulateRealClick = async (selector) => {
+  console.log("simulating a real click");
+  try {
+    const foundElement = await driver.findElement(By.css(selector));
+    if (foundElement) {
+      console.log("element found");
+      await foundElement.click();
+      console.log("SERVER: clicked element", selector);
+    } else {
+      console.log("no element found");
     }
-  } else {
+  } catch (err) {
+    console.log("Error in simulateRealClick: ", err);
     throw err;
   }
 };
@@ -140,6 +141,50 @@ const toggleFormScraper = async () => {
         )
         .then(() =>
           console.log("TOGGLED FORM SCRAPER TO ", data.isFormScraperEnabled)
+        );
+    } catch (err) {
+      console.error("error while toggling list crawler", err);
+    }
+    return;
+  });
+};
+
+const disableFormScraper = async () => {
+  readScraperState().then((data) => {
+    data.isFormScraperEnabled = false;
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+          JSON.stringify(data)
+        )
+        .then(() =>
+          console.log(
+            "(disable) TOGGLED FORM SCRAPER TO ",
+            data.isFormScraperEnabled
+          )
+        );
+    } catch (err) {
+      console.error("error while toggling list crawler", err);
+    }
+    return;
+  });
+};
+
+const enableFormScraper = async () => {
+  readScraperState().then((data) => {
+    data.isFormScraperEnabled = true;
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+          JSON.stringify(data)
+        )
+        .then(() =>
+          console.log(
+            "(enable) TOGGLED FORM SCRAPER TO ",
+            data.isFormScraperEnabled
+          )
         );
     } catch (err) {
       console.error("error while toggling list crawler", err);
@@ -409,13 +454,15 @@ app.post("/api/commands/toggle-form-scraper", (request, response) => {
 app.post("/api/commands/click", (request, response) => {
   const selector = request.body.selector;
   console.log("Trying to click inside the server", selector);
-  try {
-    simulateRealClick(selector);
-    response.status(200).end();
-  } catch (error) {
-    console.log("Error clicking button");
-    response.status(400).end();
-  }
+
+  simulateRealClick(selector)
+    .then(() => {
+      response.status(200).end();
+    })
+    .catch((error) => {
+      console.log("Error clicking button", error);
+      response.status(400).end();
+    });
 });
 
 app.post("/api/commands/switch-tabs", (request, response) => {
@@ -477,4 +524,5 @@ const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+disableFormScraper();
 openIndeed();

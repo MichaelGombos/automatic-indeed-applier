@@ -261,26 +261,30 @@ const step = async () => {
 
   const path = unsafeWindow.location.pathname;
   console.log("Stepping in current path", path);
-  switch (true) {
-    case path.includes("/postresumeapply"):
-      console.log("/postresumeapply");
-      break;
-    case path.includes("/form/resume"):
-      await selectResume();
-      break;
-    case path.includes("work-experience"):
-      await nextForm();
-      break;
-    case path.includes("review"):
-      isValid = true;
-      await sendPostData();
-      await closeTab();
-      break;
-    default:
-      isValid = false;
-      await sendPostData();
-      await closeTab();
-      break;
+  try {
+    switch (true) {
+      case path.includes("/postresumeapply"):
+        console.log("/postresumeapply");
+        break;
+      case path.includes("/form/resume"):
+        await selectResume();
+        break;
+      case path.includes("work-experience"):
+        await nextForm();
+        break;
+      case path.includes("review"):
+        isValid = true;
+        await sendPostData();
+        await closeTab();
+        break;
+      default:
+        isValid = false;
+        await sendPostData();
+        await closeTab();
+        break;
+    }
+  } catch (err) {
+    console.log("error in step", path, err);
   }
 };
 
@@ -292,10 +296,12 @@ if (unsafeWindow.location.href.includes("/indeedapply/")) {
     console.log("------------------FORM SCRAPER MOUNTED------------------");
     console.log("Scraper state ", state);
     if (unsafeWindow.location.href.includes("/postresumeapply")) {
+      console.log("running on /postresumeapply");
       waitForLocationChange(unsafeWindow.location.href).then(() => {
         step();
       });
     } else {
+      console.log("not running on /postresumeapply");
       step();
     }
   });
