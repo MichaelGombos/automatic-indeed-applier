@@ -459,13 +459,21 @@ app.post("/api/commands/toggle-form-scraper", (request, response) => {
 app.post("/api/commands/click", (request, response) => {
   const selector = request.body.selector;
   console.log("Trying to click inside the server", selector);
-
-  simulateRealClick(selector)
-    .then(() => {
-      response.status(200).end();
+  driver
+    .getCurrentUrl()
+    .then((cUrl) => {
+      simulateRealClick(selector)
+        .then(() => {
+          console.log("clicked button", selector, cUrl);
+          response.status(200).end();
+        })
+        .catch((error) => {
+          console.log("Error clicking button", cUrl, error);
+          response.status(400).end();
+        });
     })
     .catch((error) => {
-      console.log("Error clicking button", error);
+      console.log("error getting URL");
       response.status(400).end();
     });
 });

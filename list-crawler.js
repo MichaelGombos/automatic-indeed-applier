@@ -179,8 +179,9 @@ const switchTab = () => {
 };
 // ---------------------------------------------FAKE USER ACTIONS--------------------------------------------//
 
-function waitForElement(selector, intervalTime = 100, timeout = 30000) {
+function waitForElement(selector, timeout = 30000) {
   return new Promise((resolve, reject) => {
+    const intervalTime = 100;
     const startTime = Date.now(); // Record the start time for the timeout check
     const interval = setInterval(() => {
       const element = document.querySelector(selector);
@@ -188,7 +189,7 @@ function waitForElement(selector, intervalTime = 100, timeout = 30000) {
       if (element) {
         console.log("found element");
         clearInterval(interval);
-        resolve(element);
+        resolve(selector);
       } else if (Date.now() - startTime > timeout) {
         clearInterval(interval);
         reject(new Error(`Element ${selector} not found within ${timeout}ms`));
@@ -196,6 +197,12 @@ function waitForElement(selector, intervalTime = 100, timeout = 30000) {
     }, intervalTime);
   });
 }
+
+const waitForAnyElement = (selectors, timeout = 30000) => {
+  return Promise.race(
+    selectors.map((selector) => waitForElement(selector, timeout))
+  );
+};
 
 const findElementLocation = (element) => {
   // Get the bounding rectangle of the element
@@ -323,7 +330,7 @@ const removeNonDesktopElements = () => {
 
 // ------------------------------------------------MODES------------------------------------------------//
 
-const setup = () => {
+const setup = async () => {
   console.log("STARTING SETUP");
   //read search term, read search location, read search keywords
   //save information to web-scraper-state.JSON
@@ -334,6 +341,8 @@ const setup = () => {
     document.querySelector("#text-input-where").value;
   mode = "read";
   console.log("COMPLETED SETUP");
+  await wait(1000);
+  await waitForElement(`.mosaic-provider-jobcards`);
   readList();
 };
 const readList = () => {
@@ -401,6 +410,7 @@ const iterateList = async () => {
     return;
   } else {
     if (easyNodeIndex >= pagePostCount) {
+      console.log("are we on the last node?", easyNodeIndex, pagePostCount);
       nextPage();
       return;
     } else {
@@ -506,14 +516,21 @@ const iterateList = async () => {
       }
     }
   }
+  console.log("ending page iteration");
 };
 
-const nextPage = () => {
-  // console.log("STARTING NEXT PAGE");
+const nextPage = async () => {
+  console.log("STARTING NEXT PAGE");
   //take note of current location,
   //+1 to current location
   //set mode to readList
   //click the element aria-label="Next Page"
+  //aria-label="Next Page"
+  await waitForElement('[aria-label="Next Page"]').then(() => {
+    mode = "setup";
+    console.log("trying to go to the next page");
+    sendClick('[aria-label="Next Page"]');
+  });
 };
 
 // ------------------------------------------------MAIN LOOP------------------------------------------------//
@@ -546,7 +563,7 @@ const pollScraperState = async () => {
             }
             break;
           case "next":
-            nextPage();
+            await nextPage();
             break;
         }
       } catch (error) {
@@ -561,8 +578,8 @@ const pollScraperState = async () => {
 
 const launchFormScraper = () => {
   wait(1000).then(() => {
-    waitForElement("#indeedApplyButton").then(() => {
-      sendClick("#indeedApplyButton");
+    waitForElement("#indeedApplyButton").then((selector) => {
+      sendClick(selector);
     });
   });
 };

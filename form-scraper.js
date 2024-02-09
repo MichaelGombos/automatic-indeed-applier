@@ -146,12 +146,13 @@ const closeTab = () => {
   });
 };
 
-const waitForElement = (selector, intervalTime = 100, timeout = 30000) => {
+function waitForElement(selector, timeout = 30000) {
   return new Promise((resolve, reject) => {
-    const startTime = Date.now();
-
+    const intervalTime = 100;
+    const startTime = Date.now(); // Record the start time for the timeout check
     const interval = setInterval(() => {
       const element = document.querySelector(selector);
+      console.log("looking for element", selector);
 
       const isElementVisible =
         element &&
@@ -162,19 +163,25 @@ const waitForElement = (selector, intervalTime = 100, timeout = 30000) => {
       const isElementInteractable = isElementVisible && isElementEnabled;
 
       if (isElementInteractable) {
-        clearInterval(interval);
-        console.log("Element is ready to interact:", element);
-        resolve(element);
-      } else if (Date.now() - startTime > timeout) {
-        clearInterval(interval);
-        reject(
-          new Error(
-            `Element ${selector} not found or not ready within ${timeout}ms`
-          )
-        );
+        if (element) {
+          console.log("element is ready to interact", selector);
+          clearInterval(interval);
+          resolve(selector);
+        } else if (Date.now() - startTime > timeout) {
+          clearInterval(interval);
+          reject(
+            new Error(`Element ${selector} not found within ${timeout}ms`)
+          );
+        }
       }
     }, intervalTime);
   });
+}
+
+const waitForAnyElement = (selectors, timeout = 30000) => {
+  return Promise.race(
+    selectors.map((selector) => waitForElement(selector, timeout))
+  );
 };
 
 const waitForLocationChange = (currentLocation) => {
@@ -198,11 +205,14 @@ const readForm = () => {};
 const selectResume = async () => {
   console.log("waiting for resume to load");
   await wait(1000).then(() => {
-    waitForElement(resumeButtonSelector)
-      .then(() => {
+    waitForAnyElement([
+      resumeButtonSelector,
+      '[data-testid="FileResumeCard-label"]',
+    ])
+      .then((resumeSelector) => {
         console.log("clicking resume");
 
-        sendClick(resumeButtonSelector)
+        sendClick(resumeSelector)
           .then(() => {
             nextForm();
           })
