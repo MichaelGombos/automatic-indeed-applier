@@ -3,6 +3,7 @@ const fs = require("fs");
 const fsPromises = require("fs").promises;
 const { Builder, Capabilities, By, until } = require("selenium-webdriver");
 const chrome = require("selenium-webdriver/chrome");
+const { proxyEndpoint } = require("./proxy.js");
 
 const cors = require("cors");
 const app = express();
@@ -14,6 +15,8 @@ const customProfilePath =
   "C:/Users/Michael/AppDataLocal/Google/Chrome/User Data/Profile 2";
 const options = new chrome.Options();
 options.addArguments(`--user-data-dir=${customProfilePath}`);
+console.log("proxyEndpoint", proxyEndpoint);
+options.addArguments(`--proxy-server=${proxyEndpoint}`);
 
 const driver = new Builder()
   .forBrowser("chrome")
@@ -23,19 +26,9 @@ const driver = new Builder()
 // ------------------------------------------------ Selenium ------------------------------------------------ //
 const openIndeed = () => {
   driver.get("https://indeed.com");
+  // driver.get("https://whatismyipaddress.com/");
 };
 let originalWindow;
-const switchTabFocus = async () => {
-  //Store the ID of the original window
-  originalWindow = await driver.getWindowHandle();
-  //Loop through until we find a new window handle
-  const windows = await driver.getAllWindowHandles();
-  windows.forEach(async (handle) => {
-    if (handle !== originalWindow) {
-      await driver.switchTo().window(handle);
-    }
-  });
-};
 
 const switchToScraperTab = async () => {
   originalWindow = await driver.getWindowHandle();
@@ -54,18 +47,15 @@ const switchToScraperTab = async () => {
 };
 
 const closeScraperTab = async () => {
-  //Close the tab or window
   console.log("before driver close");
   await driver.close();
   console.log("after driver close");
-  //Switch back to the old tab or window
   await driver.switchTo().window(originalWindow);
   await disableFormScraper();
 };
 
 const simulateRealClick = async (selector) => {
   console.log("simulating a real click");
-  //this time should be random in the future.
   await new Promise((resolve) => setTimeout(resolve, 1000));
   try {
     const foundElement = await driver.findElement(By.css(selector));

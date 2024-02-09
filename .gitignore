@@ -2,3 +2,4 @@ node_modules/
 requests/
 database/
 test-server/
+proxy.js
