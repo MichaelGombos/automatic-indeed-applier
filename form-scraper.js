@@ -226,6 +226,10 @@ const selectResume = async () => {
   });
 };
 
+const submitApplication = async () => {
+  await nextForm(); //we will need to add the captcha solver here too.
+};
+
 const nextForm = async () => {
   console.log("clicking next form");
   await sendClick(continueButtonSelector).then(() => {
@@ -236,23 +240,27 @@ const nextForm = async () => {
 }; //should call "step" at the end.
 
 const sendPostData = async () => {
-  await getScraperState()
-    .then((scraperState) => {
-      scraperState.successful = isValid;
-      sendApplicationToDatabase(scraperState)
-        .then(() => {
-          console.log(
-            "successfully send application to server isValid:",
-            isValid
-          );
-        })
-        .catch((err) => {
-          console.log("unable to send application to server", err);
-        });
-    })
-    .catch((err) => {
-      console.log("unable to get scraperState before posting", err);
-    });
+  return new Promise((resolve, reject) => {
+    getScraperState()
+      .then((scraperState) => {
+        scraperState.successful = isValid;
+        sendApplicationToDatabase(scraperState)
+          .then(() => {
+            console.log(
+              "successfully send application to server isValid:",
+              isValid
+            );
+            resolve();
+          })
+          .catch((err) => {
+            console.log("unable to send application to server", err);
+            reject();
+          });
+      })
+      .catch((err) => {
+        console.log("unable to get scraperState before posting", err);
+      });
+  });
 };
 
 const step = async () => {
@@ -286,6 +294,9 @@ const step = async () => {
         await nextForm();
         break;
       case path.includes("review"):
+        await submitApplication();
+        break;
+      case path.includes("/post-apply"):
         isValid = true;
         await sendPostData();
         await closeTab();

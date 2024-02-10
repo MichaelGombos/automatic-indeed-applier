@@ -4,12 +4,19 @@ const fsPromises = require("fs").promises;
 const { Builder, Capabilities, By, until } = require("selenium-webdriver");
 const chrome = require("selenium-webdriver/chrome");
 const { proxyEndpoint } = require("./proxy.js");
+const Client = require("@infosimples/node_two_captcha");
 
 const cors = require("cors");
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+const client = new Client("c5b1b46c8956ea0311075c847663b95f", {
+  timeout: 60000,
+  polling: 5000,
+  throwErrors: false,
+});
 
 const customProfilePath =
   "C:/Users/Michael/AppDataLocal/Google/Chrome/User Data/Profile 2";
@@ -27,6 +34,7 @@ const driver = new Builder()
 const openIndeed = () => {
   driver.get("https://indeed.com");
   // driver.get("https://whatismyipaddress.com/");
+  // driver.get("https://2captcha.com/demo/recaptcha-v2/"); // sitekey 6LfD3PIbAAAAAJs_eEHvoOl75_83eXSqpPSRFJ_u
 };
 let originalWindow;
 
@@ -54,25 +62,34 @@ const closeScraperTab = async () => {
   await disableFormScraper();
 };
 
-const simulateRealClick = async (selector) => {
-  console.log("simulating a real click");
+const simulateRealClick = async (selector, cUrl = "noneGiven") => {
   await new Promise((resolve) => setTimeout(resolve, 1000));
   try {
     const foundElement = await driver.findElement(By.css(selector));
     if (foundElement) {
-      console.log("element found");
+      console.log("element found", selector);
       let rn = new Date();
       let time = `${rn.getHours()}:${rn.getMinutes()}:${rn.getSeconds()}:${rn.getMilliseconds()}`;
 
       await foundElement.click();
-      console.log("SERVER: clicked element", selector, time);
+      console.log("Clicked element successfully", selector, time, cUrl);
     } else {
       console.log("no element found");
     }
   } catch (err) {
-    console.log("Error in simulateRealClick: ", err);
     throw err;
   }
+};
+
+const solveCaptcha = async (key, url) => {
+  await client
+    .decodeRecaptchaV2({
+      googlekey: "6LfD3PIbAAAAAJs_eEHvoOl75_83eXSqpPSRFJ_u",
+      pageurl: "https://www.google.com/recaptcha/api2/demo",
+    })
+    .then(function (response) {
+      console.log(response);
+    });
 };
 
 // ------------------------------------------------ Scraper Database ------------------------------------------------ //
@@ -91,12 +108,10 @@ const readScraperState = async () => {
 
 const overwriteScraperState = async (info) => {
   try {
-    fsPromises
-      .writeFile(
-        "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
-        JSON.stringify(info)
-      )
-      .then(() => console.log("able to overwrite scraper state"));
+    await fsPromises.writeFile(
+      "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+      JSON.stringify(info)
+    );
   } catch (err) {
     console.error("error overwriting scraper state", err);
   }
@@ -239,8 +254,8 @@ const overwriteDB = async (info) => {
   return;
 };
 
-const addToDB = (dataToConcat, cb) => {
-  readDB().then((data) => {
+const addToDB = async (dataToConcat) => {
+  await readDB().then((data) => {
     const combinedData = data.concat(dataToConcat);
     try {
       fsPromises
@@ -253,9 +268,6 @@ const addToDB = (dataToConcat, cb) => {
         });
     } catch (err) {
       console.error("error adding to database", err);
-    }
-    if (cb) {
-      cb();
     }
     return;
   });
@@ -345,6 +357,7 @@ app.get("/", (request, response) => {
 
 app.get("/api/scraper", (request, response) => {
   readScraperState().then((scraperState) => {
+    console.log("polling scraper state");
     response.json(scraperState);
   });
 });
@@ -392,8 +405,9 @@ app.post("/api/posts", (request, response) => {
   generateId().then((id) => {
     post.id = id;
     console.log("TEST generated the post id", id, post.id, post);
-    const callback = () => response.json(post);
-    addToDB(post, callback);
+    addToDB(post).then(() => {
+      response.json(post);
+    });
   });
 });
 
@@ -448,18 +462,19 @@ app.post("/api/commands/toggle-form-scraper", (request, response) => {
 
 app.post("/api/commands/click", (request, response) => {
   const selector = request.body.selector;
-  console.log("Trying to click inside the server", selector);
+  console.log("Receieved click request for", selector);
   driver
     .getCurrentUrl()
     .then((cUrl) => {
-      simulateRealClick(selector)
+      simulateRealClick(selector, cUrl)
         .then(() => {
-          console.log("clicked button", selector, cUrl);
+          console.log("Completed click request for", selector);
           response.status(200).end();
         })
         .catch((error) => {
           console.log("Error clicking button", cUrl, error);
           response.status(400).end();
+          throw error;
         });
     })
     .catch((error) => {
@@ -470,7 +485,7 @@ app.post("/api/commands/click", (request, response) => {
 
 app.post("/api/commands/open-link", (request, response) => {
   const url = request.body.link;
-  console.log("Trying to open link inside the server", url);
+  console.log("Opening Link", url);
 
   driver
     .executeScript("window.open(arguments[0]);", url)
@@ -496,8 +511,22 @@ app.post("/api/commands/switch-tabs", (request, response) => {
 });
 
 app.post("/api/commands/close-tab", (request, response) => {
-  console.log("Trying to switch browser tabs");
+  console.log("Trying to close browser tabs");
   closeScraperTab()
+    .then(() => {
+      response.status(200).end();
+    })
+    .catch((err) => {
+      console.log("Error closing tab", err);
+      response.status(400).end();
+    });
+});
+
+app.post("/api/commands/captcha", (request, response) => {
+  const key = request.body.key;
+  const url = request.body.url;
+  console.log("Attempting to solve captcha");
+  solveCaptcha(key, url)
     .then(() => {
       response.status(200).end();
     })
@@ -529,7 +558,7 @@ app.put("/api/scraper", (request, response) => {
   const post = request.body;
   overwriteScraperState(post)
     .then(() => {
-      console.log("attempting to overwrite scraper state");
+      console.log("Scraper state update successful");
       response.json(post);
     })
     .catch((err) => {
