@@ -16,7 +16,6 @@ modes:
 
 read | select | next | send 
 */
-alert = () => console.log("alert bypass");
 
 let isValid = false;
 
@@ -204,26 +203,13 @@ const readForm = () => {};
 
 const selectResume = async () => {
   console.log("waiting for resume to load");
-  await wait(1000).then(() => {
-    waitForAnyElement([
-      resumeButtonSelector,
-      '[data-testid="FileResumeCard-label"]',
-    ])
-      .then((resumeSelector) => {
-        console.log("clicking resume");
-
-        sendClick(resumeSelector)
-          .then(() => {
-            nextForm();
-          })
-          .catch((err) => {
-            console.log("error selecting resume", err);
-          });
-      })
-      .catch((err) => {
-        console.log("error while waiting for element ", err);
-      });
-  });
+  await wait(1000);
+  const resumeSelector = await waitForAnyElement([
+    resumeButtonSelector,
+    '[data-testid="FileResumeCard-label"]',
+  ]);
+  await sendClick(resumeSelector);
+  await nextForm();
 };
 
 const submitApplication = async () => {
@@ -232,11 +218,10 @@ const submitApplication = async () => {
 
 const nextForm = async () => {
   console.log("clicking next form");
-  await sendClick(continueButtonSelector).then(() => {
-    waitForLocationChange(unsafeWindow.location.href).then(() => {
-      step();
-    });
-  });
+  const savedLocation = unsafeWindow.location.href;
+  await sendClick(continueButtonSelector);
+  await waitForLocationChange(savedLocation);
+  await step();
 }; //should call "step" at the end.
 
 const sendPostData = async () => {

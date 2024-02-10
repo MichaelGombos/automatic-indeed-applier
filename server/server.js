@@ -338,7 +338,7 @@ const clearDB = (cb) => {
     fsPromises
       .writeFile(
         "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/all-postings.json",
-        JSON.stringify([{}])
+        JSON.stringify([])
       )
       .then(() => console.log("Able to clear database"));
   } catch (err) {
@@ -512,13 +512,20 @@ app.post("/api/commands/switch-tabs", (request, response) => {
 
 app.post("/api/commands/close-tab", (request, response) => {
   console.log("Trying to close browser tabs");
-  closeScraperTab()
+
+  driver
+    .executeScript(
+      "  alert = () => {console.log('alert has been disabled.');};"
+    )
     .then(() => {
-      response.status(200).end();
-    })
-    .catch((err) => {
-      console.log("Error closing tab", err);
-      response.status(400).end();
+      closeScraperTab()
+        .then(() => {
+          response.status(200).end();
+        })
+        .catch((err) => {
+          console.log("Error closing tab", err);
+          response.status(400).end();
+        });
     });
 });
 

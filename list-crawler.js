@@ -455,7 +455,7 @@ const iterateList = async () => {
     }) a`;
     const applyLink = document.querySelector(applySelector).href;
     await waitForElement(applySelector);
-
+    updatePlaceholderdata();
     await sendPlaceholderData();
     await sendOpen(applyLink);
     await switchTab();
