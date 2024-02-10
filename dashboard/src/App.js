@@ -17,17 +17,74 @@ let postExample = {
 
 const showElementAsPending = (element) => {};
 
+function arrayToCSV(jsonArray) {
+  if (jsonArray.length === 0) return "";
+  const headers = Object.keys(jsonArray[0]).join(",");
+  const rows = jsonArray.map((obj) => {
+    return Object.values(obj)
+      .map((value) => {
+        let stringValue = String(value);
+        if (
+          stringValue.includes(",") ||
+          stringValue.includes("\n") ||
+          stringValue.includes('"')
+        ) {
+          stringValue = `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      })
+      .join(",");
+  });
+  return [headers].concat(rows).join("\n");
+}
+
+function downloadData(data, fileName) {
+  const blob = new Blob([data], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url); // Clean up by revoking the object URL
+}
+
+const handleDownload = (isFiltered) => {
+  const fileName = isFiltered
+    ? "FilteredJobApplications"
+    : "AllJobApplications";
+
+  getPost().then((data) => {
+    const tempData = data;
+    if (isFiltered) {
+      const filteredArray = tempData.filter(
+        (item) => item.successful !== false
+      );
+      downloadData(arrayToCSV(filteredArray), fileName);
+    } else {
+      downloadData(arrayToCSV(data), fileName);
+    }
+  });
+};
+
+const getPost = async (id) => {
+  return axios
+    .get(`http://localhost:3001/api/posts${id ? `/${id}` : ""}`)
+    .then((response) => {
+      return response.data;
+    })
+    .catch((error) =>
+      console.error("DASHBOARD: Error getting post from server", error)
+    );
+};
+
 const handleGetPost = (id) => {
   console.log(id === null);
   const string = id ? `post with ID ${id}` : " all posts";
   console.log("Getting", string);
 
-  axios
-    .get(`http://localhost:3001/api/posts${id ? `/${id}` : ""}`)
-    .then((response) => console.log(response.data))
-    .catch((error) =>
-      console.error("DASHBOARD: Error getting post from server", error)
-    );
+  getPost(id).then((data) => console.log("postData", data));
 };
 
 const handleAddPost = (post) => {
@@ -189,8 +246,12 @@ function App() {
           >
             {!isFormScraperEnabled ? "ENABLE" : "DISABLE"} form scraper
           </button>
-          <button>Download Master File CSV</button>
-          <button>Download Success File CSV</button>
+          <button onClick={() => handleDownload(false)}>
+            Download All Scanned Jobs
+          </button>
+          <button onClick={() => handleDownload(true)}>
+            Download only Applied Jobs
+          </button>
         </div>
       </header>
     </div>
