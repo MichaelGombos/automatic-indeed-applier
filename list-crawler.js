@@ -16,6 +16,7 @@ modes:
 setup | read | iterate | next
 */
 
+let isPaused = true;
 let isScraperBusy = false;
 let mode = "setup";
 
@@ -497,22 +498,28 @@ const pollScraperState = async () => {
     try {
       const scraperState = await getScraperState();
       isScraperBusy = scraperState.isFormScraperEnabled;
-
-      switch (mode) {
-        case "setup":
-          await setup();
-          break;
-        case "read":
-          readList();
-          break;
-        case "iterate":
-          await iterateList();
-          break;
-        case "next":
-          await nextPage();
-          break;
+      isPaused = scraperState.isPaused;
+      console.log("poll starting", isPaused);
+      if (isPaused == true) {
+        console.log("Scrapers paused, skipping poll");
+        return;
+      } else {
+        switch (mode) {
+          case "setup":
+            await setup();
+            break;
+          case "read":
+            readList();
+            break;
+          case "iterate":
+            await iterateList();
+            break;
+          case "next":
+            await nextPage();
+            break;
+        }
+        console.log("poll complete");
       }
-      console.log("poll complete");
     } catch (error) {
       console.error("Error during scraper state polling:", error);
     }

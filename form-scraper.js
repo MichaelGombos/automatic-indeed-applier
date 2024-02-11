@@ -303,15 +303,20 @@ if (unsafeWindow.location.href.includes("/indeedapply/")) {
   console.log("TRYING TO MOUNT FORM SCRAPER");
   getScraperState().then((state) => {
     console.log("------------------FORM SCRAPER MOUNTED------------------");
-    console.log("Scraper state ", state);
-    if (unsafeWindow.location.href.includes("/postresumeapply")) {
-      console.log("running on /postresumeapply");
-      waitForLocationChange(unsafeWindow.location.href).then(() => {
-        step();
-      });
+    if (state.isPaused == true) {
+      console.log("Scrapers are paused, relaunch in the dashboard");
+      return;
     } else {
-      console.log("not running on /postresumeapply");
-      step();
+      console.log("Scraper state ", state);
+      if (unsafeWindow.location.href.includes("/postresumeapply")) {
+        console.log("running on /postresumeapply");
+        waitForLocationChange(unsafeWindow.location.href).then(() => {
+          step();
+        });
+      } else {
+        console.log("not running on /postresumeapply");
+        step();
+      }
     }
   });
 }

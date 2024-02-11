@@ -12,6 +12,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const requestLogger = async () => {
+  try {
+    await fetch("http://localhost:3002/controller/last-response", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timestamp: new Date().toISOString() }),
+    });
+  } catch (error) {
+    console.error("Error sending heartbeat to controller server", error);
+    throw error;
+  }
+};
+
 const client = new Client("c5b1b46c8956ea0311075c847663b95f", {
   timeout: 60000,
   polling: 5000,
@@ -29,7 +42,6 @@ const driver = new Builder()
   .forBrowser("chrome")
   .setChromeOptions(options)
   .build();
-
 // ------------------------------------------------ Selenium ------------------------------------------------ //
 const openIndeed = () => {
   driver.get("https://indeed.com");
@@ -198,6 +210,40 @@ const enableFormScraper = async () => {
         );
     } catch (err) {
       console.error("error while toggling list crawler", err);
+    }
+    return;
+  });
+};
+
+const pauseScrapers = async () => {
+  readScraperState().then((data) => {
+    data.isPaused = true;
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+          JSON.stringify(data)
+        )
+        .then(() => console.log("Paused scraper"));
+    } catch (err) {
+      console.error("error while pausing scraper", err);
+    }
+    return;
+  });
+};
+
+const unpauseScrapers = async () => {
+  readScraperState().then((data) => {
+    data.isPaused = true;
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+          JSON.stringify(data)
+        )
+        .then(() => console.log("Unpaused scraper"));
+    } catch (err) {
+      console.error("error while unpausing scraper", err);
     }
     return;
   });
@@ -406,6 +452,7 @@ app.post("/api/posts", (request, response) => {
     post.id = id;
     console.log("TEST generated the post id", id, post.id, post);
     addToDB(post).then(() => {
+      requestLogger();
       response.json(post);
     });
   });
@@ -433,6 +480,30 @@ app.post("/api/commands/reset", (request, response) => {
       console.log("error reading test database", error);
     });
   const callback = () => clearDB(callback);
+});
+
+app.post("/api/commands/pause", (request, response) => {
+  pauseScrapers()
+    .then(() => {
+      response.status(200).end();
+      console.log("Pausing Scrapers");
+    })
+    .catch((err) => {
+      console.log("Error while pausing scraper", err);
+      response.status(400).end();
+    });
+});
+
+app.post("/api/commands/unpause", (request, response) => {
+  unpauseScrapers()
+    .then(() => {
+      response.status(200).end();
+      console.log("Pausing Scrapers");
+    })
+    .catch((err) => {
+      console.log("Error while pausing scraper", err);
+      response.status(400).end();
+    });
 });
 
 app.post("/api/commands/toggle-list-crawler", (request, response) => {
