@@ -234,7 +234,7 @@ const pauseScrapers = async () => {
 
 const unpauseScrapers = async () => {
   readScraperState().then((data) => {
-    data.isPaused = true;
+    data.isPaused = false;
     try {
       fsPromises
         .writeFile(
@@ -498,10 +498,10 @@ app.post("/api/commands/unpause", (request, response) => {
   unpauseScrapers()
     .then(() => {
       response.status(200).end();
-      console.log("Pausing Scrapers");
+      console.log("unpausing Scrapers");
     })
     .catch((err) => {
-      console.log("Error while pausing scraper", err);
+      console.log("Error while unpausing scraper", err);
       response.status(400).end();
     });
 });

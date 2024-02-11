@@ -12,6 +12,9 @@ app.use(cors());
 app.use(express.json());
 const { exec } = require("child_process");
 
+let lastTime = new Date().toISOString();
+let responseCount = 0;
+
 const launchServer = () => {
   const runCommand = "npm run start"; //starts scraper server
   scraperServerProcess = exec(runCommand, (error, stdout, stderr) => {
@@ -43,7 +46,7 @@ const unpauseServer = async () => {
 const closeServer = () => {
   const killCommand = "taskkill /IM chrome.exe /F";
 
-  scraperServerProcess.kill();
+  killSeverOnPort(3001);
   exec(killCommand, (err, stdout, stderr) => {
     if (err) {
       console.error(`Error: ${err}`);
@@ -57,9 +60,58 @@ const closeServer = () => {
   });
 };
 
-let responseInterrupted = false;
-let lastTime = new Date().toISOString();
-let responseCount = 0;
+const killSeverOnPort = (port) => {
+  const findProcessCommand = `netstat -aon | findstr :${port}`;
+
+  exec(findProcessCommand, (err, stdout, stderr) => {
+    if (err) {
+      console.error(`exec error: ${err}`);
+      return;
+    }
+
+    if (!stdout) {
+      console.log(`No process found listening on port ${port}`);
+      return;
+    }
+
+    // stdout will be a string listing the matching lines from netstat
+    // We need to parse this to find the PID
+    const lines = stdout.trim().split("\n");
+    lines.forEach((line) => {
+      const parts = line.trim().split(/\s+/);
+      const pid = parts[parts.length - 1]; // PID is the last column
+
+      // Kill the process using the PID found
+      exec(`taskkill /PID ${pid} /F`, (killErr, killStdout, killStderr) => {
+        if (killErr) {
+          console.error(`kill error: ${killErr}`);
+          return;
+        }
+        console.log(`Killed process ${pid} listening on port ${port}`);
+      });
+    });
+  });
+};
+
+const checkLastTime = () => {
+  const currentTime = Date.now();
+  const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+  const lastTimeMS = new Date(lastTime);
+  if (currentTime - lastTimeMS > fiveMinutes) {
+    console.log(
+      "More than 5 minutes have passed since the last POST request, restarting scraper."
+    );
+    closeServer();
+    launchServer();
+    lastTime = new Date().toISOString();
+  } else {
+    console.log(
+      `It has been ${((currentTime - lastTimeMS) / 1000).toFixed(
+        2
+      )} seconds since the last POST request`
+    );
+  }
+};
 
 app.get("/controller/last-response", (request, response) => {
   console.log("getting controller response");
@@ -82,7 +134,6 @@ app.post("/controller/commands/pause", (request, response) => {
     console.log("error while pausing");
     response.status(400).end();
   }
-  response.json(lastTime);
 });
 
 app.post("/controller/commands/unpause", (request, response) => {
@@ -95,20 +146,32 @@ app.post("/controller/commands/unpause", (request, response) => {
     console.log("error while unpausing");
     response.status(400).end();
   }
-  response.json(lastTime);
 });
 
 app.post("/controller/commands/launch", (request, response) => {
-  launchServer();
-  response.json(lastTime);
+  try {
+    launchServer();
+    response.status(200).end();
+  } catch {
+    console.log("error launching server");
+    response.status(400).end();
+  }
 });
 
 app.post("/controller/commands/close", (request, response) => {
-  closeServer();
-  response.json(lastTime);
+  try {
+    closeServer();
+    response.status(200).end();
+  } catch {
+    console.log("error closing server");
+    response.status(400).end();
+  }
 });
 
 const PORT = 3002;
 app.listen(PORT, () => {
   console.log(`Controller running on port ${PORT}`);
 });
+
+setInterval(checkLastTime, 5000);
+//check for last time an application sent every 5sec.
