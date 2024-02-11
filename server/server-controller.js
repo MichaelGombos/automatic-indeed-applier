@@ -74,14 +74,11 @@ const killSeverOnPort = (port) => {
       return;
     }
 
-    // stdout will be a string listing the matching lines from netstat
-    // We need to parse this to find the PID
     const lines = stdout.trim().split("\n");
     lines.forEach((line) => {
       const parts = line.trim().split(/\s+/);
-      const pid = parts[parts.length - 1]; // PID is the last column
+      const pid = parts[parts.length - 1];
 
-      // Kill the process using the PID found
       exec(`taskkill /PID ${pid} /F`, (killErr, killStdout, killStderr) => {
         if (killErr) {
           console.error(`kill error: ${killErr}`);
@@ -95,7 +92,7 @@ const killSeverOnPort = (port) => {
 
 const checkLastTime = () => {
   const currentTime = Date.now();
-  const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+  const fiveMinutes = 2 * 60 * 1000; // 2 minutes in milliseconds
   const lastTimeMS = new Date(lastTime);
   if (currentTime - lastTimeMS > fiveMinutes) {
     console.log(
@@ -174,4 +171,4 @@ app.listen(PORT, () => {
 });
 
 setInterval(checkLastTime, 5000);
-//check for last time an application sent every 5sec.
+//check for last time an application was sent, every 5sec.

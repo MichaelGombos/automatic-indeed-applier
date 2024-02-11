@@ -12,6 +12,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+let searchMode = true;
+let originalWindow;
+
 const requestLogger = async () => {
   try {
     await fetch("http://localhost:3002/controller/last-response", {
@@ -43,12 +46,11 @@ const driver = new Builder()
   .setChromeOptions(options)
   .build();
 // ------------------------------------------------ Selenium ------------------------------------------------ //
-const openIndeed = () => {
+const openIndeed = async () => {
   driver.get("https://indeed.com");
   // driver.get("https://whatismyipaddress.com/");
   // driver.get("https://2captcha.com/demo/recaptcha-v2/"); // sitekey 6LfD3PIbAAAAAJs_eEHvoOl75_83eXSqpPSRFJ_u
 };
-let originalWindow;
 
 const switchToScraperTab = async () => {
   originalWindow = await driver.getWindowHandle();
@@ -85,6 +87,23 @@ const simulateRealClick = async (selector, cUrl = "noneGiven") => {
 
       await foundElement.click();
       console.log("Clicked element successfully", selector, time, cUrl);
+    } else {
+      console.log("no element found");
+    }
+  } catch (err) {
+    throw err;
+  }
+};
+
+const simulateTyping = async (selector, text) => {
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  try {
+    const foundElement = await driver.findElement(By.css(selector));
+    if (foundElement) {
+      console.log("element found", selector);
+      await foundElement.click();
+      await driver.actions().sendKeys(foundElement, text).perform();
+      console.log(`Typed ${text} successfully`);
     } else {
       console.log("no element found");
     }
@@ -153,44 +172,39 @@ const toggleListCrawler = async () => {
 };
 
 const toggleFormScraper = async () => {
-  readScraperState().then((data) => {
-    data.isFormScraperEnabled = !data.isFormScraperEnabled;
-    try {
-      fsPromises
-        .writeFile(
-          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
-          JSON.stringify(data)
-        )
-        .then(() =>
-          console.log("TOGGLED FORM SCRAPER TO ", data.isFormScraperEnabled)
-        );
-    } catch (err) {
-      console.error("error while toggling list crawler", err);
-    }
-    return;
-  });
+  try {
+    const data = await readScraperState();
+    const jsonData = JSON.stringify(data);
+
+    jsonData.isFormScraperEnabled = !jsonData.isFormScraperEnabled;
+
+    await fsPromises.writeFile(
+      "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+      jsonData
+    );
+
+    console.log("TOGGLED FORM SCRAPER TO ", data.isFormScraperEnabled);
+  } catch (err) {
+    console.log("error toggling form scraper", err);
+  }
 };
 
 const disableFormScraper = async () => {
-  readScraperState().then((data) => {
+  console.log("trying to shut off form scraper");
+  try {
+    const data = await readScraperState();
+
     data.isFormScraperEnabled = false;
-    try {
-      fsPromises
-        .writeFile(
-          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
-          JSON.stringify(data)
-        )
-        .then(() =>
-          console.log(
-            "(disable) TOGGLED FORM SCRAPER TO ",
-            data.isFormScraperEnabled
-          )
-        );
-    } catch (err) {
-      console.error("error while toggling list crawler", err);
-    }
-    return;
-  });
+    const jsonData = JSON.stringify(data);
+    await fsPromises.writeFile(
+      "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+      jsonData
+    );
+
+    console.log("SET FORM SCRAPER TO ", data.isFormScraperEnabled);
+  } catch (err) {
+    console.log("error toggling form scraper", err);
+  }
 };
 
 const enableFormScraper = async () => {
@@ -202,16 +216,53 @@ const enableFormScraper = async () => {
           "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
           JSON.stringify(data)
         )
-        .then(() =>
+        .then(() => {
           console.log(
             "(enable) TOGGLED FORM SCRAPER TO ",
             data.isFormScraperEnabled
-          )
-        );
+          );
+          return;
+        });
     } catch (err) {
       console.error("error while toggling list crawler", err);
     }
-    return;
+  });
+};
+
+const disableSearchMode = async () => {
+  readScraperState().then((data) => {
+    data.isSearching = false;
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+          JSON.stringify(data)
+        )
+        .then(() => {
+          console.log("(disable) SEARCH MODE SET TO", data.isSearching);
+          return;
+        });
+    } catch (err) {
+      console.error("error while toggling list crawler", err);
+    }
+  });
+};
+const enableSearchMode = async () => {
+  readScraperState().then((data) => {
+    data.isSearching = true;
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/web-scraper-state.json",
+          JSON.stringify(data)
+        )
+        .then(() => {
+          console.log("ENABLE SEARCH MODE", data.isFormScraperEnabled);
+          return;
+        });
+    } catch (err) {
+      console.error("error while toggling list crawler", err);
+    }
   });
 };
 
@@ -531,6 +582,42 @@ app.post("/api/commands/toggle-form-scraper", (request, response) => {
     });
 });
 
+app.post("/api/commands/stop-search", (request, response) => {
+  disableSearchMode()
+    .then(() => {
+      console.log("Attempting to toggle form scraper");
+      response.status(200).end();
+    })
+    .catch((err) => {
+      console.log("error while toggling form scraper");
+      response.status(400).end();
+    });
+});
+
+app.post("/api/commands/send-text", (request, response) => {
+  const selector = request.body.selector;
+  const text = request.body.text;
+  console.log("Trying to type ", text, " into ", selector);
+  driver
+    .getCurrentUrl()
+    .then((cUrl) => {
+      simulateTyping(selector, text)
+        .then(() => {
+          console.log("Completed click request for", selector);
+          response.status(200).end();
+        })
+        .catch((error) => {
+          console.log("Error typing", cUrl, error);
+          response.status(400).end();
+          throw error;
+        });
+    })
+    .catch((error) => {
+      console.log("error getting URL");
+      response.status(400).end();
+    });
+});
+
 app.post("/api/commands/click", (request, response) => {
   const selector = request.body.selector;
   console.log("Receieved click request for", selector);
@@ -646,8 +733,9 @@ app.put("/api/scraper", (request, response) => {
 });
 
 const PORT = 3001;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  await disableFormScraper();
+  await enableSearchMode();
+  await openIndeed();
 });
-disableFormScraper();
-openIndeed();

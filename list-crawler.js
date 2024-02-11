@@ -16,6 +16,7 @@ modes:
 setup | read | iterate | next
 */
 
+let isSearching = false;
 let isPaused = true;
 let isScraperBusy = false;
 let mode = "setup";
@@ -138,6 +139,30 @@ const sendPlaceholderData = async () => {
 const wait = async (ms) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
+
+const disableSearch = async () => {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      url: "http://localhost:3001/api/commands/stop-search",
+      data: JSON.stringify({ data: "" }),
+      onload: function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          console.log("Disabling Search");
+          resolve();
+        } else {
+          reject(new Error("Error while disabling search " + response.status));
+        }
+      },
+      onerror: function (error) {
+        reject(new Error("Network error occurred", error));
+      },
+    });
+  });
+};
 const sendClick = async (selector) => {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
@@ -154,6 +179,32 @@ const sendClick = async (selector) => {
         } else {
           reject(
             new Error("Click Request failed with status " + response.status)
+          );
+        }
+      },
+      onerror: function (error) {
+        reject(new Error("Network error occurred", error));
+      },
+    });
+  });
+};
+
+const sendText = async (selector, text) => {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      url: "http://localhost:3001/api/commands/send-text",
+      data: JSON.stringify({ selector: selector, text: text }),
+      onload: function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          console.log("sending text to server", selector, text);
+          wait(1000).then(resolve());
+        } else {
+          reject(
+            new Error("Typing Request failed with status " + response.status)
           );
         }
       },
@@ -366,8 +417,29 @@ const removeNonDesktopElements = () => {
 
 // ------------------------------------------------MODES------------------------------------------------//
 
+function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
+}
+
+const desiredPositions = [
+  "Customer Support",
+  "Technical support",
+  "help desk",
+  "accounting",
+  "call center",
+];
 const setup = async () => {
-  console.log("STARTING SETUP");
+  console.log("STARTING SETUP SEARCH");
+  if (isSearching) {
+    console.log("IsSearching = true");
+    await waitForElement("#text-input-what");
+    await sendText("#text-input-what", desiredPositions[getRandomInt(5)]);
+    await disableSearch();
+    await waitForElement(".yosegi-InlineWhatWhere-primaryButton");
+    await sendClick(".yosegi-InlineWhatWhere-primaryButton");
+    return;
+  }
+  console.log("STARTING SETUP SCAN");
   //read search term, read search location, read search keywords
   //save information to web-scraper-state.JSON
   //set mode to readList
@@ -492,21 +564,25 @@ const nextPage = async () => {
 // ------------------------------------------------MAIN LOOP------------------------------------------------//
 
 const pollScraperState = async () => {
-  while (onSearchPage) {
+  while (true) {
     // Wait for 2.5 seconds before the next iteration
     await wait(2500);
+    console.log("sending a poll.");
     try {
       const scraperState = await getScraperState();
       isScraperBusy = scraperState.isFormScraperEnabled;
       isPaused = scraperState.isPaused;
+      isSearching = scraperState.isSearching;
+
       console.log("poll starting", isPaused);
+
       if (isPaused == true) {
         console.log("Scrapers paused, skipping poll");
         return;
       } else {
         switch (mode) {
           case "setup":
-            await setup();
+            await setup(isSearching);
             break;
           case "read":
             readList();
@@ -556,8 +632,8 @@ console.log(
   onSearchPage
 );
 
-if (onSearchPage) {
-  pollScraperState();
-} else if (onViewPage) {
+if (onViewPage) {
   launchFormScraper();
+} else {
+  pollScraperState();
 }
