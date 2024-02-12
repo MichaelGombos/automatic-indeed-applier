@@ -387,6 +387,22 @@ const overwriteDB = async (info) => {
   return;
 };
 
+const checkDuplicate = (sourceData, newData) => {
+  /*
+  if data.position & data.employer exist in an object in the source, then skip over adding this to the database
+  */
+  const newEmployer = newData.employer;
+  const newPosition = newData.position;
+  const newDate = newData.date;
+  return sourceData.some((jobPost) => {
+    return (
+      jobPost.employer == newEmployer &&
+      jobPost.position == newPosition &&
+      jobPost.date == newDate
+    );
+  });
+};
+
 const addToDB = async (dataToConcat) => {
   await readDB().then((data) => {
     const combinedData = data.concat(dataToConcat);
@@ -542,6 +558,26 @@ app.post("/api/posts", (request, response) => {
       requestLogger();
       response.json(post);
     });
+  });
+});
+
+app.post("/api/commands/check-duplicate", (request, response) => {
+  console.log("Checking database for duplicates");
+  readDB().then((data) => {
+    const potentialDuplicate = request.body;
+    try {
+      const isDuplicate = checkDuplicate(data, potentialDuplicate);
+
+      if (isDuplicate) {
+        console.log("Skipping scan, duplicate");
+        response.json(true);
+      } else {
+        console.log("not a duplicate");
+        response.json(false);
+      }
+    } catch (err) {
+      console.log("error checking for duplicates", err);
+    }
   });
 });
 

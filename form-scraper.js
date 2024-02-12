@@ -61,7 +61,7 @@ const sendApplicationToDatabase = (data) => {
         employer: data.employer,
         address: data.address,
         fulltime: data.fulltime,
-        data: data.date,
+        date: data.date.split("T")[0],
       }),
       onload: function (response) {
         if (response.status >= 200 && response.status < 300) {

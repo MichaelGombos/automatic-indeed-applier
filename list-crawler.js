@@ -135,6 +135,29 @@ const wait = async (ms) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
+const checkServerDuplicate = async () => {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      url: "http://localhost:3001/api/commands/check-duplicate",
+      data: JSON.stringify(postPlaceholder),
+      onload: function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          resolve(response.responseText);
+        } else {
+          reject(new Error("Error while disabling search " + response.status));
+        }
+      },
+      onerror: function (error) {
+        reject(new Error("Network error occurred", error));
+      },
+    });
+  });
+};
+
 const disableSearch = async () => {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
@@ -524,6 +547,11 @@ const iterateList = async () => {
     const applyLink = document.querySelector(applySelector).href;
     await waitForElement(applySelector);
     updatePlaceholderdata();
+    const isDuplicate = await checkServerDuplicate();
+    if (JSON.parse(isDuplicate)) {
+      easyNodeIndex++;
+      return;
+    }
     await sendPlaceholderData();
     await sendOpen(applyLink);
     await switchTab();
