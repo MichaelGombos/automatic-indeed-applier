@@ -17,7 +17,32 @@ let postExample = {
 
 const showElementAsPending = (element) => {};
 
-function arrayToCSV(jsonArray) {
+function normalizeObjectKeys(arrayOfObjects) {
+  // Determine all unique keys across the objects
+  const allKeys = arrayOfObjects.reduce((acc, obj) => {
+    Object.keys(obj).forEach((key) => {
+      if (!acc.includes(key)) {
+        acc.push(key);
+      }
+    });
+    return acc;
+  }, []);
+
+  // Add missing keys to each object
+  const normalizedObjects = arrayOfObjects.map((obj) => {
+    allKeys.forEach((key) => {
+      if (!(key in obj)) {
+        obj[key] = null; // Assign a default value for missing keys
+      }
+    });
+    return obj;
+  });
+
+  return normalizedObjects;
+}
+
+function arrayToCSV(jsonArrayDirty) {
+  let jsonArray = normalizeObjectKeys(jsonArrayDirty);
   if (jsonArray.length === 0) return "";
   const headers = Object.keys(jsonArray[0]).join(",");
   const rows = jsonArray.map((obj) => {

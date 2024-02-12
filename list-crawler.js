@@ -28,16 +28,13 @@ let pagePostCount = 0;
 let easyNodeIndex = 0;
 
 let postPlaceholder = {
+  applied: false,
   searchTerm: "Blank",
-  searchLocation: "Blank",
-  date: "Blank",
-  link: "Blank",
   position: "Blank",
   employer: "Blank",
   address: "Blank",
-  wage: "Blank",
   fulltime: false,
-  successful: false,
+  date: "Blank",
 };
 
 // ------------------------------------------------API CALLS------------------------------------------------//
@@ -109,13 +106,11 @@ const updatePlaceholderdata = () => {
         .innerText.includes("Fill-time")
     : "unavailible";
 
-  postPlaceholder.date = date;
-  postPlaceholder.link = postLink;
   postPlaceholder.position = position;
   postPlaceholder.employer = employer;
   postPlaceholder.address = address;
-  postPlaceholder.wage = wage;
   postPlaceholder.fulltime = fulltime;
+  postPlaceholder.date = date;
 };
 const sendPlaceholderData = async () => {
   await getScraperState()

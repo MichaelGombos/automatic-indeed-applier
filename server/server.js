@@ -125,6 +125,42 @@ const solveCaptcha = async (key, url) => {
 
 // ------------------------------------------------ Scraper Database ------------------------------------------------ //
 
+const remapDatabaseKeys = () => {
+  readDB().then((data) => {
+    let remmappedData = [];
+    data.forEach((scannedJob) => {
+      remmappedData.push({
+        id: scannedJob.id,
+        applied: scannedJob.applied,
+        searchTerm: scannedJob.searchTerm,
+        position: scannedJob.position,
+        employer: scannedJob.employer,
+        address: scannedJob.address,
+        fulltime: scannedJob.fulltime,
+        date: scannedJob.date,
+      });
+    });
+
+    try {
+      fsPromises
+        .writeFile(
+          "D:/Users/Michael/Documents/automatic-indeed-applier/server/database/all-postings.json",
+          JSON.stringify(remmappedData)
+        )
+        .then(() => {
+          console.log("remapped data");
+
+          return;
+        });
+    } catch (err) {
+      console.error(
+        "error while toggling list crawler: problem saving changes to database",
+        err
+      );
+    }
+  });
+};
+
 const readScraperState = async () => {
   try {
     const data = await fsPromises.readFile(
@@ -257,7 +293,7 @@ const enableSearchMode = async () => {
           JSON.stringify(data)
         )
         .then(() => {
-          console.log("ENABLE SEARCH MODE", data.isFormScraperEnabled);
+          console.log("ENABLE SEARCH MODE", data.isSearching);
           return;
         });
     } catch (err) {
@@ -738,4 +774,5 @@ app.listen(PORT, async () => {
   await disableFormScraper();
   await enableSearchMode();
   await openIndeed();
+  // remapDatabaseKeys();  //backup to JSON before running ffs
 });

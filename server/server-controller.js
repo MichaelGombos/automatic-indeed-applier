@@ -78,7 +78,9 @@ const killSeverOnPort = (port) => {
     lines.forEach((line) => {
       const parts = line.trim().split(/\s+/);
       const pid = parts[parts.length - 1];
-
+      if (pid == 0) {
+        return;
+      }
       exec(`taskkill /PID ${pid} /F`, (killErr, killStdout, killStderr) => {
         if (killErr) {
           console.error(`kill error: ${killErr}`);
@@ -171,4 +173,6 @@ app.listen(PORT, () => {
 });
 
 setInterval(checkLastTime, 5000);
+closeServer();
+launchServer();
 //check for last time an application was sent, every 5sec.

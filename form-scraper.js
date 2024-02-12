@@ -54,7 +54,15 @@ const sendApplicationToDatabase = (data) => {
         "Content-Type": "application/json",
       },
       url: "http://localhost:3001/api/posts",
-      data: JSON.stringify(data),
+      data: JSON.stringify({
+        id: data.id,
+        applied: data.applied,
+        searchTerm: data.SearchTerm,
+        employer: data.employer,
+        address: data.address,
+        fulltime: data.fulltime,
+        data: data.date,
+      }),
       onload: function (response) {
         if (response.status >= 200 && response.status < 300) {
           resolve(JSON.parse(response.responseText));
