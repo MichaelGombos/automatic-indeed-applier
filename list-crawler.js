@@ -450,11 +450,20 @@ const setup = async () => {
   console.log("STARTING SETUP SEARCH");
   if (isSearching) {
     console.log("IsSearching = true");
+    if (onSearchPage) {
+      await disableSearch();
+      await waitForElement('[aria-labelledby="sortByLabel dateLabel"]');
+      await sendClick('[aria-labelledby="sortByLabel dateLabel"]');
+      return;
+    }
+
     await waitForElement("#text-input-what");
     await sendText("#text-input-what", desiredPositions[getRandomInt(5)]);
-    await disableSearch();
+
     await waitForElement(".yosegi-InlineWhatWhere-primaryButton");
     await sendClick(".yosegi-InlineWhatWhere-primaryButton");
+    //if on search page, then set to most recent, then disable search.
+
     return;
   }
   console.log("STARTING SETUP SCAN");
