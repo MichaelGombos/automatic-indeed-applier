@@ -24,7 +24,7 @@ const requestLogger = async () => {
     });
   } catch (error) {
     console.error("Error sending heartbeat to controller server", error);
-    throw error;
+    //throw error;
   }
 };
 
@@ -56,17 +56,16 @@ const openIndeed = async () => {
     "Customer+Support",
     "Technical+support",
     "help+desk",
-    "accounting -senior -cpa",
     "call+center+-sales",
   ]; //using - is handy to exclude adjacent roles from indeed search.
-
+  const captchaTest = ["Scripts Rx Houston"];
   //const EXAMPLE_desiredLocations = [{ "Katy,+TX": "&radius=25" }, { remote: "" }];
   const desiredLocations = [{ "Katy,+TX": "&radius=25" }];
   const isSortingDate = true;
 
   driver.get(
     `https://www.indeed.com/jobs?q=${
-      desiredPositions[getRandomInt(desiredPositions.length)]
+      captchaTest[getRandomInt(captchaTest.length)]
     }&l=${
       Object.keys(desiredLocations[getRandomInt(desiredLocations.length)])[0]
     }${
@@ -727,7 +726,7 @@ app.post("/api/commands/click", (request, response) => {
           response.status(200).end();
         })
         .catch((error) => {
-          console.log("Error clicking button", cUrl, error);
+          console.log("Error clicking button", selector, cUrl, error);
           response.status(400).end();
           throw error;
         });

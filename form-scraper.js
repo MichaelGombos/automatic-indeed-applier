@@ -153,13 +153,15 @@ const closeTab = () => {
   });
 };
 
-function waitForElement(selector, timeout = 30000) {
+function waitForElement(selector) {
   return new Promise((resolve, reject) => {
-    const intervalTime = 100;
+    const timeout = 3000;
+    const intervalTime = 500;
     const startTime = Date.now(); // Record the start time for the timeout check
     const interval = setInterval(() => {
       const element = document.querySelector(selector);
       console.log("looking for element", selector);
+      console.log("Element", element);
 
       const isElementVisible =
         element &&
@@ -167,7 +169,17 @@ function waitForElement(selector, timeout = 30000) {
           element.offsetHeight > 0 ||
           element.getClientRects().length > 0);
       const isElementEnabled = element && !element.disabled;
-      const isElementInteractable = isElementVisible && isElementEnabled;
+      let isElementInteractable;
+
+      isElementInteractable = isElementVisible && isElementEnabled;
+
+      console.log(
+        "INTERACTABLE??",
+        selector,
+        isElementInteractable,
+        isElementVisible,
+        isElementEnabled
+      );
 
       if (isElementInteractable) {
         if (element) {
@@ -185,10 +197,34 @@ function waitForElement(selector, timeout = 30000) {
   });
 }
 
-const waitForAnyElement = (selectors, timeout = 30000) => {
-  return Promise.race(
-    selectors.map((selector) => waitForElement(selector, timeout))
-  );
+function waitForcaptchaSolve() {
+  return new Promise((resolve, reject) => {
+    const timeout = 90000; //90sec
+    const intervalTime = 1000;
+    const startTime = Date.now(); // Record the start time for the timeout check
+    const interval = setInterval(() => {
+      const element = document.querySelector(continueButtonSelector);
+      console.log("waiting for captcha solve", element);
+
+      const isCaptchaSolved = element.disabled == false;
+      if (isCaptchaSolved) {
+        console.log("Captcha Solved", continueButtonSelector);
+        clearInterval(interval);
+        resolve(continueButtonSelector);
+      } else if (Date.now() - startTime > timeout) {
+        clearInterval(interval);
+        reject(
+          new Error(
+            `Captcha ${continueButtonSelector} not solved within ${timeout}ms`
+          )
+        );
+      }
+    }, intervalTime);
+  });
+}
+
+const waitForAnyElement = (selectors) => {
+  return Promise.race(selectors.map((selector) => waitForElement(selector)));
 };
 
 const waitForLocationChange = (currentLocation) => {
@@ -219,8 +255,14 @@ const selectResume = async () => {
   await sendClick(resumeSelector);
   await nextForm();
 };
+// Pharmacy Technician - Call Center
+// Scripts Rx Houston
+//IT Officer / Tech  Lonestar Market
 
 const submitApplication = async () => {
+  // document.querySelector('[data-widget-id="1"]').click(); //back to the old way
+  await waitForcaptchaSolve();
+  await wait(500);
   await nextForm(); //we will need to add the captcha solver here too.
 };
 
