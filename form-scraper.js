@@ -89,7 +89,7 @@ const sendClick = async (selector) => {
       onload: function (response) {
         if (response.status >= 200 && response.status < 300) {
           console.log("we getting a response?", response);
-          wait(1000).then(resolve());
+          resolve();
         } else {
           reject(
             new Error("Click Request failed with status " + response.status)
@@ -211,7 +211,7 @@ const readForm = () => {};
 
 const selectResume = async () => {
   console.log("waiting for resume to load");
-  await wait(1000);
+  // await wait(1000);
   const resumeSelector = await waitForAnyElement([
     resumeButtonSelector,
     '[data-testid="FileResumeCard-label"]',
@@ -236,7 +236,7 @@ const sendPostData = async () => {
   return new Promise((resolve, reject) => {
     getScraperState()
       .then((scraperState) => {
-        scraperState.successful = isValid;
+        scraperState.applied = isValid;
         sendApplicationToDatabase(scraperState)
           .then(() => {
             console.log(

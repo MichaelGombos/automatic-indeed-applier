@@ -459,6 +459,8 @@ const setup = async () => {
 
     await waitForElement("#text-input-what");
     await sendText("#text-input-what", desiredPositions[getRandomInt(5)]);
+    await waitForElement("#text-input-where");
+    await sendText("#text-input-where", "katy");
 
     await waitForElement(".yosegi-InlineWhatWhere-primaryButton");
     await sendClick(".yosegi-InlineWhatWhere-primaryButton");
@@ -637,7 +639,7 @@ const pollScraperState = async () => {
 let launched = false;
 const launchFormScraper = async () => {
   while (!launched) {
-    await wait(5000);
+    await wait(1000);
     console.log("waiting for form scraper to get enabled");
     try {
       const scraperState = await getScraperState();
