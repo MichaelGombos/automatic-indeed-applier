@@ -45,9 +45,34 @@ const driver = new Builder()
   .forBrowser("chrome")
   .setChromeOptions(options)
   .build();
+
+// ------------------------------------------------ Utiliy ------------------------------------------------ //
+function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
+}
 // ------------------------------------------------ Selenium ------------------------------------------------ //
 const openIndeed = async () => {
-  driver.get("https://indeed.com");
+  const desiredPositions = [
+    "Customer+Support",
+    "Technical+support",
+    "help+desk",
+    "accounting -senior -cpa",
+    "call+center+-sales",
+  ]; //using - is handy to exclude adjacent roles from indeed search.
+
+  //const EXAMPLE_desiredLocations = [{ "Katy,+TX": "&radius=25" }, { remote: "" }];
+  const desiredLocations = [{ "Katy,+TX": "&radius=25" }];
+  const isSortingDate = true;
+
+  driver.get(
+    `https://www.indeed.com/jobs?q=${
+      desiredPositions[getRandomInt(desiredPositions.length)]
+    }&l=${
+      Object.keys(desiredLocations[getRandomInt(desiredLocations.length)])[0]
+    }${
+      Object.values(desiredLocations[getRandomInt(desiredLocations.length)])[0]
+    }${isSortingDate ? "&sort=date" : ""}`
+  );
   // driver.get("https://whatismyipaddress.com/");
   // driver.get("https://2captcha.com/demo/recaptcha-v2/"); // sitekey 6LfD3PIbAAAAAJs_eEHvoOl75_83eXSqpPSRFJ_u
 };

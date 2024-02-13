@@ -211,7 +211,7 @@ const readForm = () => {};
 
 const selectResume = async () => {
   console.log("waiting for resume to load");
-  // await wait(1000);
+  await wait(1000);
   const resumeSelector = await waitForAnyElement([
     resumeButtonSelector,
     '[data-testid="FileResumeCard-label"]',

@@ -13,13 +13,13 @@
 /*
 modes:
 
-setup | read | iterate | next
+read | iterate | next
 */
 
 let isSearching = false;
 let isPaused = true;
 let isScraperBusy = false;
-let mode = "setup";
+let mode = "read";
 
 let currentPageListNodes = [];
 let currentPageListEasyNodes = [];
@@ -435,51 +435,6 @@ const removeNonDesktopElements = () => {
 
 // ------------------------------------------------MODES------------------------------------------------//
 
-function getRandomInt(max) {
-  return Math.floor(Math.random() * max);
-}
-
-const desiredPositions = [
-  "Customer Support",
-  "Technical support",
-  "help desk",
-  "accounting",
-  "call center",
-];
-const setup = async () => {
-  console.log("STARTING SETUP SEARCH");
-  if (isSearching) {
-    console.log("IsSearching = true");
-    if (onSearchPage) {
-      await disableSearch();
-      await waitForElement('[aria-labelledby="sortByLabel dateLabel"]');
-      await sendClick('[aria-labelledby="sortByLabel dateLabel"]');
-      return;
-    }
-
-    await waitForElement("#text-input-what");
-    await sendText("#text-input-what", desiredPositions[getRandomInt(5)]);
-    await waitForElement("#text-input-where");
-    await sendText("#text-input-where", "katy");
-
-    await waitForElement(".yosegi-InlineWhatWhere-primaryButton");
-    await sendClick(".yosegi-InlineWhatWhere-primaryButton");
-    //if on search page, then set to most recent, then disable search.
-
-    return;
-  }
-  console.log("STARTING SETUP SCAN");
-  //read search term, read search location, read search keywords
-  //save information to web-scraper-state.JSON
-  //set mode to readList
-  postPlaceholder.searchTerm = document.querySelector("#text-input-what").value;
-  postPlaceholder.searchLocation =
-    document.querySelector("#text-input-where").value;
-  mode = "read";
-  await wait(1000);
-  await waitForElement(`.mosaic-provider-jobcards`);
-  console.log("COMPLETED SETUP");
-};
 const readList = () => {
   console.log("STARTING PAGE READ");
   //Find the Child of the element id = .mosaic-provider-jobcards, and convert to nodelist
@@ -589,7 +544,6 @@ const nextPage = async () => {
   //click the element aria-label="Next Page"
   //aria-label="Next Page"
   await waitForElement('[aria-label="Next Page"]').then(() => {
-    mode = "setup";
     console.log("trying to go to the next page");
     sendClick('[aria-label="Next Page"]');
   });
@@ -615,9 +569,6 @@ const pollScraperState = async () => {
         return;
       } else {
         switch (mode) {
-          case "setup":
-            await setup(isSearching);
-            break;
           case "read":
             readList();
             break;
@@ -639,7 +590,7 @@ const pollScraperState = async () => {
 let launched = false;
 const launchFormScraper = async () => {
   while (!launched) {
-    await wait(1000);
+    await wait(2000);
     console.log("waiting for form scraper to get enabled");
     try {
       const scraperState = await getScraperState();
