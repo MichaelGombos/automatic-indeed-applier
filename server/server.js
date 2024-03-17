@@ -65,7 +65,7 @@ const openIndeed = async () => {
 
   driver.get(
     `https://www.indeed.com/jobs?q=${
-      captchaTest[getRandomInt(captchaTest.length)]
+      desiredPositions[getRandomInt(desiredPositions.length)]
     }&l=${
       Object.keys(desiredLocations[getRandomInt(desiredLocations.length)])[0]
     }${
